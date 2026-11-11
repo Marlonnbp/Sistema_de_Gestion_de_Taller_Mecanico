@@ -1,2 +1,3 @@
 87654321;Maria Soca;987654321;mariasoca@gmail.com;true
 13245992;Martin Heidegger;911119;josetamayo@gmail.com;false
+11231413;Juan;22344456;juan@gmail.com;true
