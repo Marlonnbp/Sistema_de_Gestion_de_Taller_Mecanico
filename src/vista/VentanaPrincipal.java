@@ -10,6 +10,28 @@ package vista;
  */
 public class VentanaPrincipal extends javax.swing.JFrame {
     
+    // --- ATRIBUTOS PARA LOS GESTORES ---
+    private gestores.GestorClientes gestorClientes;
+    private gestores.GestorVehiculos gestorVehiculos;
+    private gestores.Catalogo catalogo;
+    private gestores.GestorOrdenes gestorOrdenes;
+    private gestores.HistorialFacturas historialFacturas;
+
+    // --- MÉTODO PARA INYECTAR LOS GESTORES ---
+    public void setGestores(
+            gestores.GestorClientes gClientes, 
+            gestores.GestorVehiculos gVehiculos, 
+            gestores.Catalogo gCatalogo, 
+            gestores.GestorOrdenes gOrdenes, 
+            gestores.HistorialFacturas hFacturas) {
+        
+        this.gestorClientes = gClientes;
+        this.gestorVehiculos = gVehiculos;
+        this.catalogo = gCatalogo;
+        this.gestorOrdenes = gOrdenes;
+        this.historialFacturas = hFacturas;
+    }
+    
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(VentanaPrincipal.class.getName());
 
     /**
