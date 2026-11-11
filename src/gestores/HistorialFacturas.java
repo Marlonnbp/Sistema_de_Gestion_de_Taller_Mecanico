@@ -38,4 +38,12 @@ public class HistorialFacturas {
         }
         return resultado;
     }
+
+    public Factura[] listar() {
+        Factura[] copia = new Factura[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            copia[i] = facturas[i];
+        }
+        return copia;
+    }
 }

@@ -78,4 +78,21 @@ public class GestorVehiculos {
         }
         return false;
     }
+
+    public Vehiculo[] listar() {
+        int totalActivos = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].isActivo()) {
+                totalActivos++;
+            }
+        }
+        Vehiculo[] resultado = new Vehiculo[totalActivos];
+        int k = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].isActivo()) {
+                resultado[k++] = vehiculos[i];
+            }
+        }
+        return resultado;
+    }
 }

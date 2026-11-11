@@ -89,4 +89,12 @@ public class GestorOrdenes {
         }
         return false;
     }
+
+    public OrdenTrabajo[] listar() {
+        OrdenTrabajo[] resultado = new OrdenTrabajo[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            resultado[i] = ordenes[i];
+        }
+        return resultado;
+    }
 }

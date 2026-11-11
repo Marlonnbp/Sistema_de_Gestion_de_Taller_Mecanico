@@ -62,4 +62,21 @@ public class GestorClientes {
         }
         return false;
     }
+
+    public Cliente[] listar() {
+        int totalActivos = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].isActivo()) {
+                totalActivos++;
+            }
+        }
+        Cliente[] resultado = new Cliente[totalActivos];
+        int k = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].isActivo()) {
+                resultado[k++] = clientes[i];
+            }
+        }
+        return resultado;
+    }
 }
