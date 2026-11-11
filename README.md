@@ -48,7 +48,7 @@ No se guíen por `javac -version` en CMD: depende del PATH de cada equipo.
 - Dos personas no deben editar el mismo archivo a la vez. Los archivos .form de las ventanas generan conflictos difíciles de resolver.
 - Commits pequeños y con mensaje claro (por ejemplo: Agrega CRUD de GestorClientes).
 
-## Reparto de clases (propuesta, ajustar como equipo)
+## Reparto de clases (propuesta)
 | Integrante | Clases |
 |------------|--------|
 |     A      | Cliente, Vehiculo, GestorClientes, GestorVehiculos |
