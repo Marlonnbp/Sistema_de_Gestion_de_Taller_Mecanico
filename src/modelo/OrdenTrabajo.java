@@ -72,4 +72,16 @@ public class OrdenTrabajo {
     public boolean estaActiva() {
         return this.estado != EstadoOrden.FACTURADA && this.estado != EstadoOrden.ANULADA;
     }
+    
+    public void setFechaIngreso(java.util.Date fecha) { 
+        this.fechaIngreso = fecha; 
+    }
+
+    public void cargarItemHistorico(ItemCatalogo item, int cant, double precioHistorico) {
+        if (cantidadItems < items.length) {
+            ItemCotizacion ic = new ItemCotizacion(item, cant);
+            ic.setPrecioUnitario(precioHistorico); // Mantiene el precio antiguo intacto
+            items[cantidadItems++] = ic;
+        }
+    }
 }
