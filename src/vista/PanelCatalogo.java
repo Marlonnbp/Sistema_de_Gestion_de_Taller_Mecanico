@@ -271,19 +271,33 @@ public class PanelCatalogo extends JPanel {
         }
     }
 
+    private boolean tieneFacturaEmitida(OrdenTrabajo orden) {
+        for (Factura f : historialFacturas.listarTodos()) {
+            if (f.getOrden() != null && f.getOrden().getCodigo().equalsIgnoreCase(orden.getCodigo())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void emitirFacturaDialogo() {
         OrdenTrabajo[] todasLasOrdenes = gestorOrdenes.listarTodos();
         
-        // Contar cuántas órdenes están pendientes de facturar (y que no estén anuladas ni ya facturadas)
+        // REGLA DE NEGOCIO: Solo se puede emitir factura si el estado de la orden es FACTURADA y no tiene factura previa
         int cantFacturables = 0;
         for (OrdenTrabajo o : todasLasOrdenes) {
-            if (o.getEstado() != EstadoOrden.FACTURADA && o.getEstado() != EstadoOrden.ANULADA) {
+            if (o.getEstado() == EstadoOrden.FACTURADA && !tieneFacturaEmitida(o)) {
                 cantFacturables++;
             }
         }
 
         if (cantFacturables == 0) {
-            JOptionPane.showMessageDialog(this, "No existen órdenes activas pendientes para facturar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, 
+                    "Regla de Negocio:\n" +
+                    "Solo se puede emitir una factura si el estado de la orden es FACTURADA y está pendiente de comprobante.\n" +
+                    "Cambie el estado de la orden a FACTURADA en la pestaña 'Órdenes de Trabajo' para poder emitir la factura.", 
+                    "Regla de Negocio - Emisión de Factura", 
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -291,13 +305,13 @@ public class PanelCatalogo extends JPanel {
         OrdenTrabajo[] facturables = new OrdenTrabajo[cantFacturables];
         int k = 0;
         for (OrdenTrabajo o : todasLasOrdenes) {
-            if (o.getEstado() != EstadoOrden.FACTURADA && o.getEstado() != EstadoOrden.ANULADA) {
+            if (o.getEstado() == EstadoOrden.FACTURADA && !tieneFacturaEmitida(o)) {
                 facturables[k++] = o;
-                comboOrdenes.addItem(o.getCodigo() + " - " + o.getCliente().getNombres() + " (Total: S/. " + String.format("%.2f", o.calcularTotal()) + ") [" + o.getEstado() + "]");
+                comboOrdenes.addItem(o.getCodigo() + " - " + o.getCliente().getNombres() + " (Total: S/. " + String.format("%.2f", o.calcularTotal()) + ") [Estado: FACTURADA]");
             }
         }
 
-        int opt = JOptionPane.showConfirmDialog(this, comboOrdenes, "Seleccione la orden a facturar:", JOptionPane.OK_CANCEL_OPTION);
+        int opt = JOptionPane.showConfirmDialog(this, comboOrdenes, "Seleccione la orden FACTURADA a emitir comprobante:", JOptionPane.OK_CANCEL_OPTION);
         if (opt == JOptionPane.OK_OPTION) {
             int idx = comboOrdenes.getSelectedIndex();
             OrdenTrabajo seleccionada = facturables[idx];
@@ -314,7 +328,7 @@ public class PanelCatalogo extends JPanel {
 
             boolean registrada = historialFacturas.crear(f);
             if (registrada) {
-                JOptionPane.showMessageDialog(this, "Factura " + numeroFactura + " emitida con éxito. La orden pasó al Historial.", "Facturación", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Factura " + numeroFactura + " emitida con éxito.", "Facturación", JOptionPane.INFORMATION_MESSAGE);
                 cargarTablaHistorial();
             } else {
                 JOptionPane.showMessageDialog(this, "No se pudo registrar la factura en el historial.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -338,7 +352,7 @@ public class PanelCatalogo extends JPanel {
                     }
                 }
 
-                String numFactura = (fAsociada != null) ? fAsociada.getNumero() : (o.getEstado() == EstadoOrden.FACTURADA ? "FAC-EMITIDA" : "N/A - Cancelada");
+                String numFactura = (fAsociada != null) ? fAsociada.getNumero() : (o.getEstado() == EstadoOrden.FACTURADA ? "Pendiente Comprobante" : "N/A - Cancelada");
                 String fecha = (fAsociada != null && fAsociada.getFechaEmision() != null)
                         ? sdf.format(fAsociada.getFechaEmision())
                         : sdf.format(o.getFechaIngreso());
@@ -385,7 +399,11 @@ public class PanelCatalogo extends JPanel {
         }
 
         if (f == null) {
-            JOptionPane.showMessageDialog(this, "No se encontró comprobante emitido para la orden " + codigoOrden, "Aviso", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, 
+                    "Esta orden está en estado FACTURADA pero aún no se ha generado su comprobante formal.\n" +
+                    "Use el botón 'Emitir Factura para Orden...' para generar el número de factura y su comprobante.", 
+                    "Comprobante no generado", 
+                    JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
