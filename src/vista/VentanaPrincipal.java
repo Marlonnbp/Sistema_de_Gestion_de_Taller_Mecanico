@@ -6,6 +6,7 @@ package vista;
 
 import gestores.*;
 import modelo.*;
+import persistencia.GestorArchivos;
 import javax.swing.*;
 import java.awt.*;
 
@@ -15,38 +16,16 @@ import java.awt.*;
  */
 public class VentanaPrincipal extends javax.swing.JFrame {
     
-    // --- ATRIBUTOS PARA LOS GESTORES ---
-    private gestores.GestorClientes gestorClientes;
-    private gestores.GestorVehiculos gestorVehiculos;
-    private gestores.Catalogo catalogo;
-    private gestores.GestorOrdenes gestorOrdenes;
-    private gestores.HistorialFacturas historialFacturas;
-
-    // --- MÉTODO PARA INYECTAR LOS GESTORES ---
-    public void setGestores(
-            gestores.GestorClientes gClientes, 
-            gestores.GestorVehiculos gVehiculos, 
-            gestores.Catalogo gCatalogo, 
-            gestores.GestorOrdenes gOrdenes, 
-            gestores.HistorialFacturas hFacturas) {
-        
-        this.gestorClientes = gClientes;
-        this.gestorVehiculos = gVehiculos;
-        this.catalogo = gCatalogo;
-        this.gestorOrdenes = gOrdenes;
-        this.historialFacturas = hFacturas;
-    }
-    
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(VentanaPrincipal.class.getName());
 
-    // Gestores centralizados del sistema
+    // --- ATRIBUTOS PARA LOS GESTORES ---
     private GestorClientes gestorClientes;
     private GestorVehiculos gestorVehiculos;
-    private GestorOrdenes gestorOrdenes;
     private Catalogo catalogo;
+    private GestorOrdenes gestorOrdenes;
     private HistorialFacturas historialFacturas;
 
-    // Paneles de la interfaz
+    // --- PANELES DE LA INTERFAZ ---
     private PanelClientes panelClientes;
     private PanelVehiculos panelVehiculos;
     private PanelOrdenes panelOrdenes;
@@ -57,34 +36,33 @@ public class VentanaPrincipal extends javax.swing.JFrame {
      */
     public VentanaPrincipal() {
         initComponents();
-        inicializarSistema();
     }
 
-    private void inicializarSistema() {
-        // 1. Instanciación de gestores con capacidad en arreglos (Algorítmica II)
-        gestorClientes = new GestorClientes(100);
-        gestorVehiculos = new GestorVehiculos(100);
-        gestorOrdenes = new GestorOrdenes(100);
-        catalogo = new Catalogo();
-        historialFacturas = new HistorialFacturas(100);
+    // --- MÉTODO PARA INYECTAR LOS GESTORES (Llamado desde Main tras cargar .txt) ---
+    public void setGestores(
+            GestorClientes gClientes, 
+            GestorVehiculos gVehiculos, 
+            Catalogo gCatalogo, 
+            GestorOrdenes gOrdenes, 
+            HistorialFacturas hFacturas) {
+        
+        this.gestorClientes = gClientes;
+        this.gestorVehiculos = gVehiculos;
+        this.catalogo = gCatalogo;
+        this.gestorOrdenes = gOrdenes;
+        this.historialFacturas = hFacturas;
 
-        // 2. Datos de prueba iniciales en el catálogo para facilitar pruebas
-        catalogo.crear(new Servicio("SRV-001", "Cambio de Aceite y Filtro", 85.0));
-        catalogo.crear(new Servicio("SRV-002", "Alineación y Balanceo", 60.0));
-        catalogo.crear(new Servicio("SRV-003", "Diagnóstico Computarizado", 75.0));
-        catalogo.crear(new Servicio("SRV-004", "Mantenimiento del Sistema de Frenos", 120.0));
-        catalogo.crear(new Repuesto("REP-001", "Filtro de Aceite Sintético", 35.0, 30));
-        catalogo.crear(new Repuesto("REP-002", "Pastillas de Freno Delanteras", 140.0, 15));
-        catalogo.crear(new Repuesto("REP-003", "Bujía de Iridio", 28.0, 40));
-        catalogo.crear(new Repuesto("REP-004", "Líquido de Frenos DOT 4", 25.0, 20));
+        construirInterfaz();
+    }
 
-        // 3. Crear paneles de interfaz
+    private void construirInterfaz() {
+        // 1. Crear paneles de interfaz conectados a los gestores cargados
         panelClientes = new PanelClientes(gestorClientes);
         panelVehiculos = new PanelVehiculos(gestorVehiculos, gestorClientes);
         panelOrdenes = new PanelOrdenes(gestorOrdenes, gestorClientes, gestorVehiculos, catalogo);
         panelCatalogo = new PanelCatalogo(catalogo, gestorOrdenes, historialFacturas);
 
-        // 4. Configurar pestañas principales
+        // 2. Configurar pestañas principales
         JTabbedPane pestañas = new JTabbedPane();
         pestañas.setFont(new Font("Segoe UI", Font.BOLD, 13));
 
@@ -105,17 +83,53 @@ public class VentanaPrincipal extends javax.swing.JFrame {
             }
         });
 
-        // 5. Configurar contenedor y ventana
+        // 3. Barra de Menú con opción para Guardar en Archivos .txt
+        JMenuBar menuBar = new JMenuBar();
+        JMenu menuArchivo = new JMenu("Archivo");
+        menuArchivo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+
+        JMenuItem itemGuardar = new JMenuItem("💾 Guardar Todo en Archivos (.txt)");
+        itemGuardar.addActionListener(e -> guardarDatosEnDisco());
+
+        JMenuItem itemSalir = new JMenuItem("❌ Salir");
+        itemSalir.addActionListener(e -> System.exit(0));
+
+        menuArchivo.add(itemGuardar);
+        menuArchivo.addSeparator();
+        menuArchivo.add(itemSalir);
+        menuBar.add(menuArchivo);
+        setJMenuBar(menuBar);
+
+        // 4. Configurar dimensiones y visualización de la ventana
         setTitle("Sistema de Gestión de Taller Mecánico - Algorítmica II");
         setSize(1040, 720);
         setMinimumSize(new Dimension(900, 600));
-        setLocationRelativeTo(null);
 
         getContentPane().removeAll();
         getContentPane().setLayout(new BorderLayout());
         getContentPane().add(pestañas, BorderLayout.CENTER);
         revalidate();
         repaint();
+    }
+
+    private void guardarDatosEnDisco() {
+        try {
+            GestorArchivos.guardarClientes(gestorClientes);
+            GestorArchivos.guardarCatalogo(catalogo);
+            GestorArchivos.guardarVehiculos(gestorVehiculos);
+            GestorArchivos.guardarOrdenes(gestorOrdenes);
+            GestorArchivos.guardarFacturas(historialFacturas);
+
+            JOptionPane.showMessageDialog(this,
+                    "¡Todos los datos han sido guardados exitosamente en la carpeta 'datos/'!",
+                    "Guardado Exitoso",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Ocurrió un error al guardar los archivos: " + ex.getMessage(),
+                    "Error al Guardar",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     /**

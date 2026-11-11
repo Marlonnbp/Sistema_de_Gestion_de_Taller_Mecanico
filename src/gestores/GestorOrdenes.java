@@ -98,6 +98,10 @@ public class GestorOrdenes {
         return copia;
     }
 
+    public OrdenTrabajo[] listar() {
+        return listarTodos();
+    }
+
     public OrdenTrabajo leerCualquiera(String codigo) {
         if (codigo == null) return null;
         for (int i = 0; i < cantidad; i++) {

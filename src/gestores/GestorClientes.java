@@ -71,6 +71,10 @@ public class GestorClientes {
         return copia;
     }
 
+    public Cliente[] listar() {
+        return listarTodos();
+    }
+
     public Cliente leerCualquiera(String dni) {
         if (dni == null) return null;
         for (int i = 0; i < cantidad; i++) {

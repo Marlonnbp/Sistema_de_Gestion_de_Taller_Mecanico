@@ -47,6 +47,10 @@ public class HistorialFacturas {
         return copia;
     }
 
+    public Factura[] listar() {
+        return listarTodos();
+    }
+
     public void agregarDesdeArchivo(Factura f) {
         if (cantidad < facturas.length) {
             facturas[cantidad++] = f;

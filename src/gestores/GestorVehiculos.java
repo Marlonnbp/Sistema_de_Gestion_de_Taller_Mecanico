@@ -87,6 +87,10 @@ public class GestorVehiculos {
         return copia;
     }
 
+    public Vehiculo[] listar() {
+        return listarTodos();
+    }
+
     public Vehiculo leerCualquiera(String placa) {
         if (placa == null) return null;
         for (int i = 0; i < cantidad; i++) {
