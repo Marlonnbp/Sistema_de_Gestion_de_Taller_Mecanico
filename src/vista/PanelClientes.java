@@ -106,8 +106,8 @@ public class PanelClientes extends JPanel {
         gbc.insets = new Insets(12, 6, 6, 6);
         panelFormulario.add(panelBotones, gbc);
 
-        // Botón RF-06: Consultar vehículos del cliente
-        JButton btnVerVehiculos = new JButton("🚗 Consultar Vehículos (RF-06)");
+        // Botón: Consultar vehículos del cliente
+        JButton btnVerVehiculos = new JButton("🚗 Consultar Vehículos");
         btnVerVehiculos.setBackground(new Color(23, 162, 184));
         btnVerVehiculos.setForeground(Color.WHITE);
         btnVerVehiculos.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -228,10 +228,10 @@ public class PanelClientes extends JPanel {
             return;
         }
 
-        // RF-04: El sistema verifica que el cliente no tenga órdenes activas
+        // El sistema verifica que el cliente no tenga órdenes activas
         if (gestorOrdenes != null && gestorOrdenes.tieneOrdenesActivas(cliente)) {
             JOptionPane.showMessageDialog(this,
-                    "Rechazo de baja (RF-04):\nNo se puede dar de baja al cliente '" + cliente.getNombres() + 
+                    "No se puede dar de baja al cliente '" + cliente.getNombres() + 
                     "' porque tiene órdenes de trabajo activas en el taller.",
                     "Baja Rechazada",
                     JOptionPane.WARNING_MESSAGE);
@@ -311,13 +311,13 @@ public class PanelClientes extends JPanel {
         tablaClientes.clearSelection();
     }
 
-    // RF-06: Consultar vehículos del cliente
+    // Consultar vehículos del cliente
     private void consultarVehiculosCliente() {
         String dni = txtDni.getText().trim();
         if (dni.isEmpty()) {
             JOptionPane.showMessageDialog(this, 
                     "Seleccione un cliente de la tabla o ingrese su DNI para consultar sus vehículos.", 
-                    "Validación (RF-06)", 
+                    "Validación", 
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -326,7 +326,7 @@ public class PanelClientes extends JPanel {
         Cliente c = gestorClientes.leer(dni);
         if (c == null) {
             JOptionPane.showMessageDialog(this, 
-                    "Precondición no cumplida (RF-06): El cliente con DNI " + dni + " no existe o está inactivo.", 
+                    "El cliente con DNI " + dni + " no existe o está inactivo.", 
                     "Cliente no encontrado", 
                     JOptionPane.ERROR_MESSAGE);
             return;
@@ -342,8 +342,8 @@ public class PanelClientes extends JPanel {
 
         if (vehiculos.length == 0) {
             JOptionPane.showMessageDialog(this, 
-                    "El cliente " + c.getNombres() + " (DNI: " + c.getDni() + ") no tiene vehículos asociados registrados actualmente.", 
-                    "Vehículos del Cliente (RF-06)", 
+                    "El cliente " + c.getNombres() + " (DNI: " + c.getDni() + ") no tiene vehículos asociados actualmente.", 
+                    "Vehículos del Cliente", 
                     JOptionPane.INFORMATION_MESSAGE);
             return;
         }
@@ -372,7 +372,7 @@ public class PanelClientes extends JPanel {
         scroll.setPreferredSize(new Dimension(520, 180));
 
         JOptionPane.showMessageDialog(this, scroll, 
-                "Vehículos de " + c.getNombres() + " (DNI: " + c.getDni() + ") - RF-06", 
+                "Vehículos de " + c.getNombres() + " (DNI: " + c.getDni() + ")", 
                 JOptionPane.PLAIN_MESSAGE);
     }
 }

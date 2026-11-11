@@ -308,14 +308,13 @@ public class PanelOrdenes extends JPanel {
             return;
         }
 
-        // RF-17 Precondición: La orden debe estar en estado EN_DIAGNOSTICO (o COTIZADA para seguir añadiendo ítems)
+        // Precondición: La orden debe estar en estado EN_DIAGNOSTICO (o COTIZADA para seguir añadiendo ítems)
         if (orden.getEstado() != EstadoOrden.EN_DIAGNOSTICO && orden.getEstado() != EstadoOrden.COTIZADA) {
             JOptionPane.showMessageDialog(this,
-                    "Precondición no cumplida (RF-17 - Elaborar Cotización):\n" +
                     "Para cotizar servicios o repuestos, la orden debe estar en estado 'EN_DIAGNOSTICO'.\n" +
                     "Estado actual de la orden " + orden.getCodigo() + ": " + orden.getEstado() + ".\n" +
                     "Cambie primero el estado a 'EN_DIAGNOSTICO' con el botón '⚙️ Cambiar Estado'.",
-                    "Precondición RF-17 no cumplida",
+                    "Estado no válido para cotizar",
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -369,7 +368,7 @@ public class PanelOrdenes extends JPanel {
             JOptionPane.showMessageDialog(this, 
                     "Ítem agregado con éxito a la cotización.\n" +
                     "La orden " + orden.getCodigo() + " ahora se encuentra en estado 'COTIZADA' (pendiente de aprobación).", 
-                    "Cotización Elaborada (RF-17)", 
+                    "Cotización Elaborada", 
                     JOptionPane.INFORMATION_MESSAGE);
             cargarItemsDeOrdenSeleccionada();
             cargarTablaOrdenes();

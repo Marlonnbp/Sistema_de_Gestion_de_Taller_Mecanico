@@ -95,7 +95,7 @@ public class PanelCatalogo extends JPanel {
         agregarCampo(panelFormulario, "Stock inicial:", txtStock, gbc, 4);
 
         JButton btnGuardar = new JButton("Guardar Ítem");
-        JButton btnActualizar = new JButton("Actualizar (RF-15)");
+        JButton btnActualizar = new JButton("Actualizar");
         JButton btnBaja = new JButton("Dar de Baja");
         JButton btnLimpiar = new JButton("Limpiar");
 
@@ -248,7 +248,7 @@ public class PanelCatalogo extends JPanel {
         if (codigo.isEmpty() || nombre.isEmpty() || strPrecio.isEmpty()) {
             JOptionPane.showMessageDialog(this, 
                     "Seleccione un ítem del catálogo o ingrese sus datos para actualizar.", 
-                    "Validación (RF-15)", 
+                    "Validación", 
                     JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -257,7 +257,7 @@ public class PanelCatalogo extends JPanel {
         ItemCatalogo existente = catalogo.leer(codigo);
         if (existente == null) {
             JOptionPane.showMessageDialog(this, 
-                    "Precondición no cumplida (RF-15): El ítem con código '" + codigo + "' no existe en el catálogo activo.", 
+                    "El ítem con código '" + codigo + "' no existe en el catálogo activo.", 
                     "Ítem no encontrado", 
                     JOptionPane.ERROR_MESSAGE);
             return;
@@ -289,7 +289,7 @@ public class PanelCatalogo extends JPanel {
         if (actualizado) {
             // RF-15 Postcondición: Muestra valores actualizados (cotizaciones previas congelan sus precios)
             JOptionPane.showMessageDialog(this, 
-                    "Ítem '" + codigo + "' actualizado correctamente (RF-15).\n" +
+                    "Ítem '" + codigo + "' actualizado correctamente.\n" +
                     "(Las cotizaciones ya emitidas conservan sus precios congelados intactos).", 
                     "Actualización Exitosa", 
                     JOptionPane.INFORMATION_MESSAGE);

@@ -255,10 +255,10 @@ public class PanelVehiculos extends JPanel {
             return;
         }
 
-        // RF-08: El sistema verifica que no tenga órdenes activas
+        // El sistema verifica que no tenga órdenes activas
         if (gestorOrdenes != null && gestorOrdenes.tieneOrdenActiva(v)) {
             JOptionPane.showMessageDialog(this,
-                    "Rechazo de baja (RF-08):\nNo se puede dar de baja al vehículo con placa " + placa + 
+                    "No se puede dar de baja al vehículo con placa " + placa + 
                     " porque tiene una orden de trabajo activa en el taller.",
                     "Baja Rechazada",
                     JOptionPane.WARNING_MESSAGE);
