@@ -160,4 +160,14 @@ public class Catalogo {
         }
         return lineas;
     }
+    
+    public ItemCatalogo leerCualquiera(String codigo) {
+        if (codigo == null) return null;
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].getCodigo().equals(codigo.trim())) {
+                return items[i];
+            }
+        }
+        return null;
+    }
 }

@@ -89,4 +89,28 @@ public class GestorOrdenes {
         }
         return false;
     }
+    
+    public OrdenTrabajo[] listarTodos() {
+        OrdenTrabajo[] copia = new OrdenTrabajo[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            copia[i] = ordenes[i];
+        }
+        return copia;
+    }
+
+    public OrdenTrabajo leerCualquiera(String codigo) {
+        if (codigo == null) return null;
+        for (int i = 0; i < cantidad; i++) {
+            if (ordenes[i].getCodigo().equalsIgnoreCase(codigo)) {
+                return ordenes[i];
+            }
+        }
+        return null;
+    }
+
+    public void agregarDesdeArchivo(OrdenTrabajo o) {
+        if (cantidad < ordenes.length) {
+            ordenes[cantidad++] = o;
+        }
+    }
 }

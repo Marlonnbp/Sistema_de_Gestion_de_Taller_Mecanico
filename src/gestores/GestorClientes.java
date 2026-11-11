@@ -62,4 +62,22 @@ public class GestorClientes {
         }
         return false;
     }
+    
+    public Cliente[] listarTodos() {
+        Cliente[] copia = new Cliente[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            copia[i] = clientes[i];
+        }
+        return copia;
+    }
+
+    public Cliente leerCualquiera(String dni) {
+        if (dni == null) return null;
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].getDni().equals(dni)) {
+                return clientes[i];
+            }
+        }
+        return null;
+    }
 }

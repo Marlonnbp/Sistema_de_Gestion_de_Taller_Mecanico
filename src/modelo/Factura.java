@@ -29,4 +29,13 @@ public class Factura {
         this.total = orden.calcularTotal();
         orden.cambiarEstado(EstadoOrden.FACTURADA);
     }
+    
+    public Factura(String numero, java.util.Date fechaEmision, double subtotal, double igv, double total, OrdenTrabajo orden) {
+        this.numero = numero;
+        this.fechaEmision = fechaEmision;
+        this.subtotal = subtotal;
+        this.igv = igv;
+        this.total = total;
+        this.orden = orden;
+    }
 }

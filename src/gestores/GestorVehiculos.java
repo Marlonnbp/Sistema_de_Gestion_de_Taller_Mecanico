@@ -78,4 +78,22 @@ public class GestorVehiculos {
         }
         return false;
     }
+    
+    public Vehiculo[] listarTodos() {
+        Vehiculo[] copia = new Vehiculo[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            copia[i] = vehiculos[i];
+        }
+        return copia;
+    }
+
+    public Vehiculo leerCualquiera(String placa) {
+        if (placa == null) return null;
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].getPlaca().equalsIgnoreCase(placa)) {
+                return vehiculos[i];
+            }
+        }
+        return null;
+    }
 }
