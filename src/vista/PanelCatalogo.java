@@ -26,9 +26,9 @@ public class PanelCatalogo extends JPanel {
     private JTable tablaCatalogo;
     private DefaultTableModel modeloTablaCatalogo;
 
-    // Componentes de Facturación
-    private JTable tablaFacturas;
-    private DefaultTableModel modeloTablaFacturas;
+    // Componentes de Historial
+    private JTable tablaHistorial;
+    private DefaultTableModel modeloTablaHistorial;
     private SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 
     public PanelCatalogo(Catalogo catalogo, GestorOrdenes gestorOrdenes, HistorialFacturas historialFacturas) {
@@ -41,12 +41,12 @@ public class PanelCatalogo extends JPanel {
 
         JTabbedPane subTabs = new JTabbedPane();
         subTabs.addTab("📦 Catálogo de Ítems (Servicios / Repuestos)", crearPanelCatalogo());
-        subTabs.addTab("🧾 Facturación e Historial", crearPanelFacturacion());
+        subTabs.addTab("📜 Historial", crearPanelHistorial());
 
         add(subTabs, BorderLayout.CENTER);
 
         cargarTablaCatalogo();
-        cargarTablaFacturas();
+        cargarTablaHistorial();
     }
 
     private JPanel crearPanelCatalogo() {
@@ -131,7 +131,7 @@ public class PanelCatalogo extends JPanel {
         return panel;
     }
 
-    private JPanel crearPanelFacturacion() {
+    private JPanel crearPanelHistorial() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
 
         JPanel panelAcciones = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
@@ -145,14 +145,16 @@ public class PanelCatalogo extends JPanel {
         panelAcciones.add(btnVerTicket);
         panel.add(panelAcciones, BorderLayout.NORTH);
 
-        String[] cols = {"N° Factura", "Fecha Emisión", "N° Orden", "Cliente", "Subtotal", "IGV (18%)", "Total (S/.)"};
-        modeloTablaFacturas = new DefaultTableModel(cols, 0) {
+        // Columnas actualizadas incluyendo el Estado (FACTURADA / ANULADA)
+        String[] cols = {"N° Orden", "Estado", "N° Factura", "Fecha Cierre", "Cliente", "Vehículo (Placa)", "Total (S/.)"};
+        modeloTablaHistorial = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int row, int column) { return false; }
         };
-        tablaFacturas = new JTable(modeloTablaFacturas);
-        tablaFacturas.setRowHeight(24);
-        panel.add(new JScrollPane(tablaFacturas), BorderLayout.CENTER);
+        tablaHistorial = new JTable(modeloTablaHistorial);
+        tablaHistorial.setRowHeight(24);
+        tablaHistorial.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        panel.add(new JScrollPane(tablaHistorial), BorderLayout.CENTER);
 
         btnEmitirFactura.addActionListener(e -> emitirFacturaDialogo());
         btnVerTicket.addActionListener(e -> verTicketFactura());
@@ -270,72 +272,123 @@ public class PanelCatalogo extends JPanel {
     }
 
     private void emitirFacturaDialogo() {
-        OrdenTrabajo[] ordenes = gestorOrdenes.listar();
-        if (ordenes.length == 0) {
-            JOptionPane.showMessageDialog(this, "No existen órdenes para facturar.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        OrdenTrabajo[] todasLasOrdenes = gestorOrdenes.listarTodos();
+        
+        // Contar cuántas órdenes están pendientes de facturar (y que no estén anuladas ni ya facturadas)
+        int cantFacturables = 0;
+        for (OrdenTrabajo o : todasLasOrdenes) {
+            if (o.getEstado() != EstadoOrden.FACTURADA && o.getEstado() != EstadoOrden.ANULADA) {
+                cantFacturables++;
+            }
+        }
+
+        if (cantFacturables == 0) {
+            JOptionPane.showMessageDialog(this, "No existen órdenes activas pendientes para facturar.", "Aviso", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         JComboBox<String> comboOrdenes = new JComboBox<>();
-        for (OrdenTrabajo o : ordenes) {
-            comboOrdenes.addItem(o.getCodigo() + " - " + o.getCliente().getNombres() + " (Total: S/. " + String.format("%.2f", o.calcularTotal()) + ")");
+        OrdenTrabajo[] facturables = new OrdenTrabajo[cantFacturables];
+        int k = 0;
+        for (OrdenTrabajo o : todasLasOrdenes) {
+            if (o.getEstado() != EstadoOrden.FACTURADA && o.getEstado() != EstadoOrden.ANULADA) {
+                facturables[k++] = o;
+                comboOrdenes.addItem(o.getCodigo() + " - " + o.getCliente().getNombres() + " (Total: S/. " + String.format("%.2f", o.calcularTotal()) + ") [" + o.getEstado() + "]");
+            }
         }
 
         int opt = JOptionPane.showConfirmDialog(this, comboOrdenes, "Seleccione la orden a facturar:", JOptionPane.OK_CANCEL_OPTION);
         if (opt == JOptionPane.OK_OPTION) {
             int idx = comboOrdenes.getSelectedIndex();
-            OrdenTrabajo seleccionada = ordenes[idx];
-
-            if (seleccionada.getEstado() == EstadoOrden.FACTURADA) {
-                JOptionPane.showMessageDialog(this, "Esta orden ya se encuentra facturada.", "Aviso", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
+            OrdenTrabajo seleccionada = facturables[idx];
 
             if (seleccionada.getCantidadItems() == 0) {
                 JOptionPane.showMessageDialog(this, "La orden no tiene ningún servicio o repuesto cotizado.", "Aviso", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
-            int numFacturas = historialFacturas.listar().length + 1;
+            int numFacturas = historialFacturas.listarTodos().length + 1;
             String numeroFactura = "FAC-" + String.format("%04d", numFacturas);
             Factura f = new Factura(numeroFactura);
             f.emitir(seleccionada);
 
             boolean registrada = historialFacturas.crear(f);
             if (registrada) {
-                JOptionPane.showMessageDialog(this, "Factura " + numeroFactura + " emitida con éxito.", "Facturación", JOptionPane.INFORMATION_MESSAGE);
-                cargarTablaFacturas();
+                JOptionPane.showMessageDialog(this, "Factura " + numeroFactura + " emitida con éxito. La orden pasó al Historial.", "Facturación", JOptionPane.INFORMATION_MESSAGE);
+                cargarTablaHistorial();
             } else {
                 JOptionPane.showMessageDialog(this, "No se pudo registrar la factura en el historial.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
-    public void cargarTablaFacturas() {
-        modeloTablaFacturas.setRowCount(0);
-        Factura[] lista = historialFacturas.listar();
-        for (Factura f : lista) {
-            modeloTablaFacturas.addRow(new Object[]{
-                    f.getNumero(),
-                    f.getFechaEmision() != null ? sdf.format(f.getFechaEmision()) : "-",
-                    f.getOrden() != null ? f.getOrden().getCodigo() : "-",
-                    (f.getOrden() != null && f.getOrden().getCliente() != null) ? f.getOrden().getCliente().getNombres() : "-",
-                    String.format("%.2f", f.getSubtotal()),
-                    String.format("%.2f", f.getIgv()),
-                    String.format("%.2f", f.getTotal())
-            });
+    public void cargarTablaHistorial() {
+        modeloTablaHistorial.setRowCount(0);
+        OrdenTrabajo[] todasLasOrdenes = gestorOrdenes.listarTodos();
+        Factura[] facturas = historialFacturas.listarTodos();
+
+        for (OrdenTrabajo o : todasLasOrdenes) {
+            // Solo se muestran las órdenes que ya concluyeron su ciclo: FACTURADAS o ANULADAS
+            if (o.getEstado() == EstadoOrden.FACTURADA || o.getEstado() == EstadoOrden.ANULADA) {
+                Factura fAsociada = null;
+                for (Factura f : facturas) {
+                    if (f.getOrden() != null && f.getOrden().getCodigo().equalsIgnoreCase(o.getCodigo())) {
+                        fAsociada = f;
+                        break;
+                    }
+                }
+
+                String numFactura = (fAsociada != null) ? fAsociada.getNumero() : (o.getEstado() == EstadoOrden.FACTURADA ? "FAC-EMITIDA" : "N/A - Cancelada");
+                String fecha = (fAsociada != null && fAsociada.getFechaEmision() != null)
+                        ? sdf.format(fAsociada.getFechaEmision())
+                        : sdf.format(o.getFechaIngreso());
+                String nomCliente = (o.getCliente() != null) ? o.getCliente().getNombres() : "-";
+                String placaVehiculo = (o.getVehiculo() != null) ? o.getVehiculo().getPlaca() : "-";
+
+                modeloTablaHistorial.addRow(new Object[]{
+                        o.getCodigo(),
+                        o.getEstado().toString(),
+                        numFactura,
+                        fecha,
+                        nomCliente,
+                        placaVehiculo,
+                        String.format("%.2f", o.calcularTotal())
+                });
+            }
         }
     }
 
     private void verTicketFactura() {
-        int fila = tablaFacturas.getSelectedRow();
+        int fila = tablaHistorial.getSelectedRow();
         if (fila < 0) {
-            JOptionPane.showMessageDialog(this, "Seleccione una factura de la tabla para ver su comprobante.", "Validación", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Seleccione una orden del historial para ver su comprobante.", "Validación", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        Factura[] lista = historialFacturas.listar();
-        Factura f = lista[fila];
+        String estado = modeloTablaHistorial.getValueAt(fila, 1).toString();
+        if ("ANULADA".equalsIgnoreCase(estado)) {
+            JOptionPane.showMessageDialog(this, 
+                    "Esta orden fue anulada/cancelada, por lo que no cuenta con un comprobante de pago emitido.", 
+                    "Sin Comprobante", 
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String codigoOrden = modeloTablaHistorial.getValueAt(fila, 0).toString();
+        Factura[] lista = historialFacturas.listarTodos();
+        Factura f = null;
+        for (Factura fac : lista) {
+            if (fac.getOrden() != null && fac.getOrden().getCodigo().equalsIgnoreCase(codigoOrden)) {
+                f = fac;
+                break;
+            }
+        }
+
+        if (f == null) {
+            JOptionPane.showMessageDialog(this, "No se encontró comprobante emitido para la orden " + codigoOrden, "Aviso", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
         OrdenTrabajo o = f.getOrden();
 
         StringBuilder sb = new StringBuilder();

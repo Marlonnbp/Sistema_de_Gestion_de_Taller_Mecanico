@@ -233,18 +233,29 @@ public class PanelOrdenes extends JPanel {
         mostrarEnTabla(lista);
     }
 
+    private boolean esEstadoActivo(EstadoOrden estado) {
+        return estado == EstadoOrden.EN_ESPERA ||
+               estado == EstadoOrden.EN_DIAGNOSTICO ||
+               estado == EstadoOrden.COTIZADA ||
+               estado == EstadoOrden.APROBADA ||
+               estado == EstadoOrden.LISTA_PARA_ENTREGA;
+    }
+
     private void mostrarEnTabla(OrdenTrabajo[] lista) {
         modeloTablaOrdenes.setRowCount(0);
         for (OrdenTrabajo o : lista) {
-            modeloTablaOrdenes.addRow(new Object[]{
-                    o.getCodigo(),
-                    sdf.format(o.getFechaIngreso()),
-                    o.getCliente().getNombres(),
-                    o.getVehiculo().getPlaca(),
-                    o.getMotivoIngreso(),
-                    o.getEstado(),
-                    String.format("%.2f", o.calcularTotal())
-            });
+            // Solo se muestran órdenes activas en taller; las FACTURADAS o ANULADAS van al Historial
+            if (esEstadoActivo(o.getEstado())) {
+                modeloTablaOrdenes.addRow(new Object[]{
+                        o.getCodigo(),
+                        sdf.format(o.getFechaIngreso()),
+                        o.getCliente().getNombres(),
+                        o.getVehiculo().getPlaca(),
+                        o.getMotivoIngreso(),
+                        o.getEstado(),
+                        String.format("%.2f", o.calcularTotal())
+                });
+            }
         }
         modeloTablaItems.setRowCount(0);
         lblTotalOrden.setText("Total Orden: S/. 0.00   ");

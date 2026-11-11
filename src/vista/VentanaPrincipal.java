@@ -69,7 +69,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         pestañas.addTab("  👤 Clientes  ", panelClientes);
         pestañas.addTab("  🚗 Vehículos  ", panelVehiculos);
         pestañas.addTab("  📋 Órdenes de Trabajo  ", panelOrdenes);
-        pestañas.addTab("  📦 Catálogo y Facturación  ", panelCatalogo);
+        pestañas.addTab("  📦 Catálogo e Historial  ", panelCatalogo);
 
         // Actualizar datos de las tablas automáticamente al cambiar de pestaña
         pestañas.addChangeListener(e -> {
@@ -79,7 +79,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
             else if (idx == 2) panelOrdenes.cargarTablaOrdenes();
             else if (idx == 3) {
                 panelCatalogo.cargarTablaCatalogo();
-                panelCatalogo.cargarTablaFacturas();
+                panelCatalogo.cargarTablaHistorial();
             }
         });
 
