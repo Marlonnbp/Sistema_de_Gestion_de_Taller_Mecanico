@@ -27,6 +27,3 @@ replay_pid*
 nbproject/private/
 build/
 dist/
-# Datos generados por el programa
-datos/*
-!datos/.gitkeep
