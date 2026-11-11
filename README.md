@@ -48,10 +48,10 @@ No se guíen por `javac -version` en CMD: depende del PATH de cada equipo.
 - Dos personas no deben editar el mismo archivo a la vez. Los archivos .form de las ventanas generan conflictos difíciles de resolver.
 - Commits pequeños y con mensaje claro (por ejemplo: Agrega CRUD de GestorClientes).
 
-## Reparto de clases (propuesta)
+## Reparto de clases
 | Integrante | Clases |
 |------------|--------|
-|     A      | Cliente, Vehiculo, GestorClientes, GestorVehiculos |
+|   Malon    | Cliente, Vehiculo, GestorClientes, GestorVehiculos |
 |     B      | ItemCatalogo, Repuesto, Servicio, Catalogo |
 |     C      | OrdenTrabajo, EstadoOrden, Diagnostico, ItemCotizacion, GestorOrdenes |
 |     D      | Factura, HistorialFacturas, GestorArchivos (persistencia) |
