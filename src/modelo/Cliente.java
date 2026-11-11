@@ -5,14 +5,14 @@ public class Cliente {
     private String nombres;
     private String telefono;
     private String correo;
-    private boolean activo;
+    private boolean activo; // Agregado para la baja lógica
 
     public Cliente(String dni, String nombres, String telefono, String correo) {
         this.dni = dni;
         this.nombres = nombres;
         this.telefono = telefono;
         this.correo = correo;
-        this.activo = true; // Por defecto, al crear un cliente está activo
+        this.activo = true; // Por defecto nace activo
     }
 
     // Getters
