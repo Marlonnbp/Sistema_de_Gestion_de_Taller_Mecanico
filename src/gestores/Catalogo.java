@@ -123,6 +123,19 @@ public class Catalogo {
         return true;
     }
 
+    public boolean actualizar(String codigo, String nuevoNombre, double nuevoPrecio, int nuevoStock) {
+        ItemCatalogo item = leer(codigo);
+        if (item == null) {
+            return false;
+        }
+        item.setNombre(nuevoNombre);
+        item.setPrecio(nuevoPrecio);
+        if (item instanceof Repuesto && nuevoStock >= 0) {
+            ((Repuesto) item).setStock(nuevoStock);
+        }
+        return true;
+    }
+
     // Reemplaza eliminar() por darDeBaja() para mantener el historial
     public boolean darDeBaja(String codigo) {
         if (codigo == null) {

@@ -8,6 +8,8 @@ import modelo.*;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.text.SimpleDateFormat;
 
 public class PanelCatalogo extends JPanel {
@@ -93,15 +95,22 @@ public class PanelCatalogo extends JPanel {
         agregarCampo(panelFormulario, "Stock inicial:", txtStock, gbc, 4);
 
         JButton btnGuardar = new JButton("Guardar Ítem");
+        JButton btnActualizar = new JButton("Actualizar (RF-15)");
         JButton btnBaja = new JButton("Dar de Baja");
+        JButton btnLimpiar = new JButton("Limpiar");
+
         btnGuardar.setBackground(new Color(40, 167, 69));
         btnGuardar.setForeground(Color.WHITE);
+        btnActualizar.setBackground(new Color(0, 123, 255));
+        btnActualizar.setForeground(Color.WHITE);
         btnBaja.setBackground(new Color(220, 53, 69));
         btnBaja.setForeground(Color.WHITE);
 
-        JPanel panelBtns = new JPanel(new GridLayout(1, 2, 6, 6));
+        JPanel panelBtns = new JPanel(new GridLayout(2, 2, 6, 6));
         panelBtns.add(btnGuardar);
+        panelBtns.add(btnActualizar);
         panelBtns.add(btnBaja);
+        panelBtns.add(btnLimpiar);
 
         gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2;
         gbc.insets = new Insets(15, 6, 6, 6);
@@ -117,15 +126,25 @@ public class PanelCatalogo extends JPanel {
         };
         tablaCatalogo = new JTable(modeloTablaCatalogo);
         tablaCatalogo.setRowHeight(24);
+        tablaCatalogo.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         panel.add(new JScrollPane(tablaCatalogo), BorderLayout.CENTER);
 
         // Eventos
         btnGuardar.addActionListener(e -> guardarItem());
+        btnActualizar.addActionListener(e -> actualizarItem());
         btnBaja.addActionListener(e -> darBajaItem());
+        btnLimpiar.addActionListener(e -> limpiarFormulario());
         btnBuscar.addActionListener(e -> buscarItem());
         btnTodos.addActionListener(e -> {
             txtBuscarNombre.setText("");
             cargarTablaCatalogo();
+        });
+
+        tablaCatalogo.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                cargarFormularioDesdeTabla();
+            }
         });
 
         return panel;
@@ -212,14 +231,101 @@ public class PanelCatalogo extends JPanel {
         boolean ok = catalogo.crear(nuevo);
         if (ok) {
             JOptionPane.showMessageDialog(this, "Ítem agregado al catálogo con éxito.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
-            txtCodigo.setText("");
-            txtNombre.setText("");
-            txtPrecio.setText("");
-            txtStock.setText("");
+            limpiarFormulario();
             cargarTablaCatalogo();
         } else {
             JOptionPane.showMessageDialog(this, "El código ya existe o el catálogo está lleno.", "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    // RF-15: Modificar repuesto o servicio
+    private void actualizarItem() {
+        String codigo = txtCodigo.getText().trim();
+        String nombre = txtNombre.getText().trim();
+        String strPrecio = txtPrecio.getText().trim();
+        String tipo = (String) cmbTipo.getSelectedItem();
+
+        if (codigo.isEmpty() || nombre.isEmpty() || strPrecio.isEmpty()) {
+            JOptionPane.showMessageDialog(this, 
+                    "Seleccione un ítem del catálogo o ingrese sus datos para actualizar.", 
+                    "Validación (RF-15)", 
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // RF-15 Precondición: El ítem existe
+        ItemCatalogo existente = catalogo.leer(codigo);
+        if (existente == null) {
+            JOptionPane.showMessageDialog(this, 
+                    "Precondición no cumplida (RF-15): El ítem con código '" + codigo + "' no existe en el catálogo activo.", 
+                    "Ítem no encontrado", 
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        double nuevoPrecio;
+        try {
+            nuevoPrecio = Double.parseDouble(strPrecio);
+            if (nuevoPrecio < 0) throw new NumberFormatException();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "El precio debe ser un número mayor o igual a 0.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int nuevoStock = -1;
+        if ("REPUESTO".equals(tipo)) {
+            String strStock = txtStock.getText().trim();
+            try {
+                nuevoStock = Integer.parseInt(strStock);
+                if (nuevoStock < 0) throw new NumberFormatException();
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "El stock de repuesto debe ser un número entero mayor o igual a 0.", "Validación", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+        }
+
+        // RF-15 Proceso: Actualizar valores
+        boolean actualizado = catalogo.actualizar(codigo, nombre, nuevoPrecio, nuevoStock);
+        if (actualizado) {
+            // RF-15 Postcondición: Muestra valores actualizados (cotizaciones previas congelan sus precios)
+            JOptionPane.showMessageDialog(this, 
+                    "Ítem '" + codigo + "' actualizado correctamente (RF-15).\n" +
+                    "(Las cotizaciones ya emitidas conservan sus precios congelados intactos).", 
+                    "Actualización Exitosa", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            cargarTablaCatalogo();
+            limpiarFormulario();
+        } else {
+            JOptionPane.showMessageDialog(this, "No se pudo actualizar el ítem.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void cargarFormularioDesdeTabla() {
+        int fila = tablaCatalogo.getSelectedRow();
+        if (fila >= 0) {
+            String tipo = modeloTablaCatalogo.getValueAt(fila, 0).toString();
+            cmbTipo.setSelectedItem(tipo);
+            txtCodigo.setText(modeloTablaCatalogo.getValueAt(fila, 1).toString());
+            txtNombre.setText(modeloTablaCatalogo.getValueAt(fila, 2).toString());
+            txtPrecio.setText(modeloTablaCatalogo.getValueAt(fila, 3).toString().replace(",", "."));
+
+            Object stockVal = modeloTablaCatalogo.getValueAt(fila, 4);
+            if ("REPUESTO".equals(tipo) && stockVal != null && !stockVal.equals("N/A")) {
+                txtStock.setText(stockVal.toString());
+                txtStock.setEnabled(true);
+            } else {
+                txtStock.setText("");
+                txtStock.setEnabled(false);
+            }
+        }
+    }
+
+    private void limpiarFormulario() {
+        txtCodigo.setText("");
+        txtNombre.setText("");
+        txtPrecio.setText("");
+        txtStock.setText("");
+        tablaCatalogo.clearSelection();
     }
 
     private void darBajaItem() {
