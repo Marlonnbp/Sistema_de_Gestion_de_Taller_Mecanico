@@ -1,0 +1,10 @@
+REPUESTO;REP-001;Filtro de Aceite Original Toyota;45.5;true;25
+REPUESTO;REP-002;Pastillas de Freno Delanteras;120.0;true;15
+REPUESTO;REP-003;Filtro de Aire de Cabina;65.0;true;20
+REPUESTO;REP-004;Batería 12V Toyota;350.0;true;10
+REPUESTO;REP-005;Aceite Sintético 5W-30 (Galón);180.0;true;30
+SERVICIO;SER-001;Mantenimiento Preventivo 10k km;250.0;true
+SERVICIO;SER-002;Cambio de Pastillas de Freno;80.0;true
+SERVICIO;SER-003;Alineamiento y Balanceo;120.0;true
+SERVICIO;SER-004;Diagnóstico Computarizado (Escáner);100.0;true
+SERVICIO;SER-005;Revisión Sistema Eléctrico;90.0;true
