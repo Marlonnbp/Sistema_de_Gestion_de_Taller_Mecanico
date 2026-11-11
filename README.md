@@ -16,6 +16,26 @@ Taller especializado en el Toyota Corolla Cross 2.0 CVT.
 - docs: entregable y diagramas
 - datos: archivos generados por el programa
 
+## Requisitos y versiones
+
+Todos los integrantes deben usar estas versiones para evitar errores de compilación.
+
+| Herramienta | Versión |
+|---|---|
+| JDK | 26 |
+| Apache NetBeans | 30 — https://netbeans.apache.org/download/nb30/ |
+
+El proyecto está configurado con `javac.source=26` y `javac.target=26`
+(archivo `nbproject/project.properties`). No cambiarlo sin avisar al equipo.
+
+### Configurar NetBeans con el JDK 26
+1. Tools → Java Platforms: debe aparecer un JDK 26. Si no aparece, usar
+   Add Platform… y elegir la carpeta donde está instalado.
+2. Clic derecho en el proyecto → Properties → Libraries → Java Platform: JDK 26.
+3. Pulsar Run (F6): debe imprimir "Sistema de Gestion de Taller Mecanico".
+
+No se guíen por `javac -version` en CMD: depende del PATH de cada equipo.
+
 ## Cómo unirse al proyecto
 1. Aceptar la invitación de colaborador que llega al correo.
 2. GitHub Desktop → File → Clone repository… → pestaña GitHub.com → elegir taller-mecanico-algoritmica-ii y una carpeta local sin espacios ni OneDrive.
