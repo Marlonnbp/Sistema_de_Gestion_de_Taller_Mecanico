@@ -38,7 +38,7 @@ No se guíen por `javac -version` en CMD: depende del PATH de cada equipo.
 
 ## Cómo unirse al proyecto
 1. Aceptar la invitación de colaborador que llega al correo.
-2. GitHub Desktop → File → Clone repository… → pestaña GitHub.com → elegir taller-mecanico-algoritmica-ii y una carpeta local sin espacios ni OneDrive.
+2. GitHub Desktop → File → Clone repository… → pestaña GitHub.com → elegir Sistema_de_Gestion_de_Taller_Mecanico y una carpeta local sin espacios ni OneDrive.
 3. NetBeans → File → Open Project… → seleccionar la carpeta clonada (se reconoce por el ícono de proyecto) → Open Project.
 4. Probar con Run (F6): debe imprimir el mensaje del Main.
 
