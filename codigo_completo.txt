@@ -1,0 +1,650 @@
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\gestores\Catalogo.java --- 
+package modelo;
+
+public class Catalogo {
+
+    private static final int CAPACIDAD = 100;
+
+    private final ItemCatalogo[] items;
+    private int cantidad;
+
+    public Catalogo() {
+        items = new ItemCatalogo[CAPACIDAD];
+        cantidad = 0;
+    }
+
+    public int getCantidad() {
+        return cantidad;
+    }
+
+    public boolean estaLleno() {
+        return cantidad == CAPACIDAD;
+    }
+
+    public boolean existe(String codigo) {
+        return leer(codigo) != null;
+    }
+
+    public boolean crear(ItemCatalogo item) {
+        if (item == null || estaLleno() || existe(item.getCodigo())) {
+            return false;
+        }
+        items[cantidad++] = item;
+        return true;
+    }
+
+    public ItemCatalogo leer(String codigo) {
+        if (codigo == null) {
+            return null;
+        }
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].getCodigo().equals(codigo.trim())) {
+                return items[i];
+            }
+        }
+        return null;
+    }
+
+    public ItemCatalogo[] buscarPorNombre(String texto) {
+        if (texto == null || texto.trim().isEmpty()) {
+            return new ItemCatalogo[0];
+        }
+        String criterio = texto.trim().toLowerCase();
+        int total = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].getNombre().toLowerCase().contains(criterio)) {
+                total++;
+            }
+        }
+        ItemCatalogo[] resultado = new ItemCatalogo[total];
+        int k = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].getNombre().toLowerCase().contains(criterio)) {
+                resultado[k++] = items[i];
+            }
+        }
+        return resultado;
+    }
+
+    public ItemCatalogo[] listar() {
+        ItemCatalogo[] copia = new ItemCatalogo[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            copia[i] = items[i];
+        }
+        return copia;
+    }
+
+    public boolean modificarPrecio(String codigo, double nuevoPrecio) {
+        ItemCatalogo item = leer(codigo);
+        if (item == null) {
+            return false;
+        }
+        item.setPrecio(nuevoPrecio);
+        return true;
+    }
+
+    public boolean modificarStock(String codigo, int nuevoStock) {
+        ItemCatalogo item = leer(codigo);
+        if (!(item instanceof Repuesto)) {
+            return false;
+        }
+        ((Repuesto) item).setStock(nuevoStock);
+        return true;
+    }
+
+    public boolean eliminar(String codigo) {
+        if (codigo == null) {
+            return false;
+        }
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].getCodigo().equals(codigo.trim())) {
+                for (int j = i; j < cantidad - 1; j++) {
+                    items[j] = items[j + 1];
+                }
+                items[--cantidad] = null;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean cargarDesdeLinea(String linea) {
+        if (linea == null || linea.trim().isEmpty()) {
+            return false;
+        }
+        String tipo = linea.split(";")[0];
+        if (tipo.equals("REPUESTO")) {
+            return crear(Repuesto.desdeLinea(linea));
+        }
+        if (tipo.equals("SERVICIO")) {
+            return crear(Servicio.desdeLinea(linea));
+        }
+        throw new IllegalArgumentException("Tipo de ítem desconocido: " + tipo);
+    }
+
+    public String[] toLineas() {
+        String[] lineas = new String[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            lineas[i] = items[i].toLinea();
+        }
+        return lineas;
+    }
+} 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\gestores\GestorClientes.java --- 
+package gestores;
+
+import modelo.Cliente;
+
+public class GestorClientes {
+    private Cliente[] clientes;
+    private int cantidad;
+
+    public GestorClientes(int capacidadMaxima) {
+        this.clientes = new Cliente[capacidadMaxima];
+        this.cantidad = 0;
+    }
+
+    public boolean crear(Cliente c) {
+        if (cantidad >= clientes.length) return false;
+        
+        // Evitar duplicados por DNI
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].getDni().equals(c.getDni())) {
+                // Reactivación si estaba dado de baja
+                if (!clientes[i].isActivo()) {
+                    clientes[i] = c; 
+                    return true;
+                }
+                return false; // Ya existe y está activo
+            }
+        }
+        
+        clientes[cantidad] = c;
+        cantidad++;
+        return true;
+    }
+
+    public Cliente leer(String dniONombre) {
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].isActivo()) {
+                if (clientes[i].getDni().equals(dniONombre) || 
+                    clientes[i].getNombres().equalsIgnoreCase(dniONombre)) {
+                    return clientes[i];
+                }
+            }
+        }
+        return null;
+    }
+
+    public boolean actualizar(Cliente c) {
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].getDni().equals(c.getDni()) && clientes[i].isActivo()) {
+                clientes[i] = c;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean darDeBaja(String dni) {
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].getDni().equals(dni) && clientes[i].isActivo()) {
+                clientes[i].setActivo(false);
+                return true;
+            }
+        }
+        return false;
+    }
+} 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\gestores\GestorOrdenes.java --- 
+package gestores;
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\gestores\GestorVehiculos.java --- 
+package gestores;
+
+import modelo.Cliente;
+import modelo.Vehiculo;
+
+public class GestorVehiculos {
+    private Vehiculo[] vehiculos;
+    private int cantidad;
+
+    public GestorVehiculos(int capacidadMaxima) {
+        this.vehiculos = new Vehiculo[capacidadMaxima];
+        this.cantidad = 0;
+    }
+
+    public boolean crear(Vehiculo v) {
+        if (cantidad >= vehiculos.length) return false;
+        
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].getPlaca().equalsIgnoreCase(v.getPlaca())) {
+                // Reactivación si estaba dado de baja
+                if (!vehiculos[i].isActivo()) {
+                    vehiculos[i] = v; 
+                    return true;
+                }
+                return false;
+            }
+        }
+        
+        vehiculos[cantidad] = v;
+        cantidad++;
+        return true;
+    }
+
+    public Vehiculo leer(String placa) {
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].isActivo() && vehiculos[i].getPlaca().equalsIgnoreCase(placa)) {
+                return vehiculos[i];
+            }
+        }
+        return null;
+    }
+
+    public Vehiculo[] listarPorCliente(Cliente c) {
+        int coincidencias = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].isActivo() && vehiculos[i].getPropietario().getDni().equals(c.getDni())) {
+                coincidencias++;
+            }
+        }
+
+        Vehiculo[] resultado = new Vehiculo[coincidencias];
+        int indice = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].isActivo() && vehiculos[i].getPropietario().getDni().equals(c.getDni())) {
+                resultado[indice] = vehiculos[i];
+                indice++;
+            }
+        }
+        return resultado;
+    }
+
+    public boolean actualizar(Vehiculo v) {
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].getPlaca().equalsIgnoreCase(v.getPlaca()) && vehiculos[i].isActivo()) {
+                vehiculos[i] = v;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean darDeBaja(String placa) {
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].getPlaca().equalsIgnoreCase(placa) && vehiculos[i].isActivo()) {
+                vehiculos[i].setActivo(false);
+                return true;
+            }
+        }
+        return false;
+    }
+}
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\gestores\HistorialFacturas.java --- 
+package gestores;
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Cliente.java --- 
+package modelo;
+
+public class Cliente {
+    private String dni;
+    private String nombres;
+    private String telefono;
+    private String correo;
+    private boolean activo; // Agregado para la baja lógica
+
+    public Cliente(String dni, String nombres, String telefono, String correo) {
+        this.dni = dni;
+        this.nombres = nombres;
+        this.telefono = telefono;
+        this.correo = correo;
+        this.activo = true; // Por defecto nace activo
+    }
+
+    // Getters
+    public String getDni() { return dni; }
+    public String getNombres() { return nombres; }
+    public String getTelefono() { return telefono; }
+    public String getCorreo() { return correo; }
+    public boolean isActivo() { return activo; }
+
+    // Setters
+    public void setDni(String dni) { this.dni = dni; }
+    public void setNombres(String nombres) { this.nombres = nombres; }
+    public void setTelefono(String telefono) { this.telefono = telefono; }
+    public void setCorreo(String correo) { this.correo = correo; }
+    public void setActivo(boolean activo) { this.activo = activo; }
+} 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Diagnostico.java --- 
+package modelo;
+
+//hola 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\EstadoOrden.java --- 
+package modelo;
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Factura.java --- 
+package modelo;
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\ItemCatalogo.java --- 
+package modelo;
+
+public abstract class ItemCatalogo {
+
+    private final String codigo;
+    private String nombre;
+    private double precio;
+
+    public ItemCatalogo(String codigo, String nombre, double precio) {
+        if (codigo == null || codigo.trim().isEmpty()) {
+            throw new IllegalArgumentException("El código es obligatorio.");
+        }
+        this.codigo = codigo.trim();
+        setNombre(nombre);
+        setPrecio(precio);
+    }
+
+    // ---------- Getters ----------
+
+    public String getCodigo() {
+        return codigo;
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public double getPrecio() {
+        return precio;
+    }
+
+
+
+    public void setNombre(String nombre) {
+        if (nombre == null || nombre.trim().isEmpty()) {
+            throw new IllegalArgumentException("El nombre es obligatorio.");
+        }
+        this.nombre = nombre.trim();
+    }
+
+    public void setPrecio(double precio) {
+        if (precio < 0) {
+            throw new IllegalArgumentException("El precio no puede ser negativo.");
+        }
+        this.precio = precio;
+    }
+
+
+
+
+    public double calcularImporte(int cantidad) {
+        if (cantidad <= 0) {
+            throw new IllegalArgumentException("La cantidad debe ser mayor que cero.");
+        }
+        return precio * cantidad;
+    }
+
+
+    public abstract String getTipo();
+
+    public abstract String toLinea();
+
+    protected String lineaBase() {
+        return codigo + ";" + nombre + ";" + precio;
+    }
+
+    // ---------- Object ----------
+
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof ItemCatalogo)) return false;
+        ItemCatalogo otro = (ItemCatalogo) obj;
+        return codigo.equals(otro.codigo);
+    }
+
+    @Override
+    public int hashCode() {
+        return codigo.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return getTipo() + " [" + codigo + "] " + nombre + " - S/ " + String.format("%.2f", precio);
+    }
+} 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\ItemCotizacion.java --- 
+package modelo;
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\OrdenTrabajo.java --- 
+package modelo;
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Repuesto.java --- 
+package modelo;
+
+public class Repuesto extends ItemCatalogo {
+
+    private int stock;
+
+    public Repuesto(String codigo, String nombre, double precio, int stock) {
+        super(codigo, nombre, precio);
+        setStock(stock);
+    }
+
+    public int getStock() {
+        return stock;
+    }
+
+    public void setStock(int stock) {
+        if (stock < 0) {
+            throw new IllegalArgumentException("El stock no puede ser negativo.");
+        }
+        this.stock = stock;
+    }
+
+    public boolean hayStock(int cantidad) {
+        return cantidad > 0 && stock >= cantidad;
+    }
+
+    public void descontarStock(int cantidad) {
+        if (cantidad <= 0) {
+            throw new IllegalArgumentException("La cantidad debe ser mayor que cero.");
+        }
+        if (cantidad > stock) {
+            throw new IllegalArgumentException("Stock insuficiente de " + getNombre() + ".");
+        }
+        stock -= cantidad;
+    }
+
+    public void reponerStock(int cantidad) {
+        if (cantidad <= 0) {
+            throw new IllegalArgumentException("La cantidad debe ser mayor que cero.");
+        }
+        stock += cantidad;
+    }
+
+    @Override
+    public String getTipo() {
+        return "REPUESTO";
+    }
+
+    @Override
+    public String toLinea() {
+        return getTipo() + ";" + lineaBase() + ";" + stock;
+    }
+
+    public static Repuesto desdeLinea(String linea) {
+        String[] p = linea.split(";");
+        if (p.length != 5 || !p[0].equals("REPUESTO")) {
+            throw new IllegalArgumentException("Línea de repuesto inválida: " + linea);
+        }
+        return new Repuesto(p[1], p[2], Double.parseDouble(p[3]), Integer.parseInt(p[4]));
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " | Stock: " + stock;
+    }
+} 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Servicio.java --- 
+package modelo;
+
+public class Servicio extends ItemCatalogo {
+
+    public Servicio(String codigo, String nombre, double precio) {
+        super(codigo, nombre, precio);
+    }
+
+    @Override
+    public String getTipo() {
+        return "SERVICIO";
+    }
+
+    @Override
+    public String toLinea() {
+        return getTipo() + ";" + lineaBase();
+    }
+
+    public static Servicio desdeLinea(String linea) {
+        String[] p = linea.split(";");
+        if (p.length != 4 || !p[0].equals("SERVICIO")) {
+            throw new IllegalArgumentException("Línea de servicio inválida: " + linea);
+        }
+        return new Servicio(p[1], p[2], Double.parseDouble(p[3]));
+    }
+} 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Vehiculo.java --- 
+package modelo;
+
+public class Vehiculo {
+    private String placa;
+    private int anio;
+    private String color;
+    private int kilometraje;
+    private Cliente propietario;
+    private boolean activo; // Agregado para la baja lógica
+
+    public Vehiculo(String placa, int anio, String color, int kilometraje, Cliente propietario) {
+        this.placa = placa;
+        this.anio = anio;
+        this.color = color;
+        this.kilometraje = kilometraje;
+        this.propietario = propietario;
+        this.activo = true; // Por defecto nace activo
+    }
+
+    public void actualizarKilometraje(int km) {
+        if (km > this.kilometraje) {
+            this.kilometraje = km;
+        }
+    }
+
+    // Getters
+    public String getPlaca() { return placa; }
+    public int getAnio() { return anio; }
+    public String getColor() { return color; }
+    public int getKilometraje() { return kilometraje; }
+    public Cliente getPropietario() { return propietario; }
+    public boolean isActivo() { return activo; }
+
+    // Setters
+    public void setPlaca(String placa) { this.placa = placa; }
+    public void setAnio(int anio) { this.anio = anio; }
+    public void setColor(String color) { this.color = color; }
+    public void setKilometraje(int kilometraje) { this.kilometraje = kilometraje; }
+    public void setPropietario(Cliente propietario) { this.propietario = propietario; }
+    public void setActivo(boolean activo) { this.activo = activo; }
+} 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\persistencia\GestorArchivos.java --- 
+package persistencia;
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\principal\Main.java --- 
+package principal;
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Sistema de Gestion de Taller Mecanico");
+    }
+}
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\vista\package-info.java --- 
+package vista;
+ 
+// --- Archivo: C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\vista\VentanaPrincipal.java --- 
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
+ */
+package vista;
+
+/**
+ *
+ * @author Marlon
+ */
+public class VentanaPrincipal extends javax.swing.JFrame {
+    
+    private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(VentanaPrincipal.class.getName());
+
+    /**
+     * Creates new form VentanaPrincipal
+     */
+    public VentanaPrincipal() {
+        initComponents();
+    }
+
+    /**
+     * This method is called from within the constructor to initialize the form.
+     * WARNING: Do NOT modify this code. The content of this method is always
+     * regenerated by the Form Editor.
+     */
+    @SuppressWarnings("unchecked")
+    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
+    private void initComponents() {
+
+        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
+        getContentPane().setLayout(layout);
+        layout.setHorizontalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 400, Short.MAX_VALUE)
+        );
+        layout.setVerticalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 300, Short.MAX_VALUE)
+        );
+
+        pack();
+    }// </editor-fold>//GEN-END:initComponents
+
+    /**
+     * @param args the command line arguments
+     */
+    public static void main(String args[]) {
+        /* Set the Nimbus look and feel */
+        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
+        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
+         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
+         */
+        try {
+            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
+        } catch (ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException ex) {
+            logger.log(java.util.logging.Level.SEVERE, null, ex);
+        }
+        //</editor-fold>
+
+        /* Create and display the form */
+        java.awt.EventQueue.invokeLater(() -> new VentanaPrincipal().setVisible(true));
+    }
+
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    // End of variables declaration//GEN-END:variables
+}
