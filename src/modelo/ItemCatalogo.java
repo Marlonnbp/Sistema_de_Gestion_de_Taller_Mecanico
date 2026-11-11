@@ -5,6 +5,7 @@ public abstract class ItemCatalogo {
     private final String codigo;
     private String nombre;
     private double precio;
+    private boolean activo; // Agregado para la baja lógica
 
     public ItemCatalogo(String codigo, String nombre, double precio) {
         if (codigo == null || codigo.trim().isEmpty()) {
@@ -13,23 +14,17 @@ public abstract class ItemCatalogo {
         this.codigo = codigo.trim();
         setNombre(nombre);
         setPrecio(precio);
+        this.activo = true; // Por defecto nace activo
     }
 
     // ---------- Getters ----------
 
-    public String getCodigo() {
-        return codigo;
-    }
+    public String getCodigo() { return codigo; }
+    public String getNombre() { return nombre; }
+    public double getPrecio() { return precio; }
+    public boolean isActivo() { return activo; }
 
-    public String getNombre() {
-        return nombre;
-    }
-
-    public double getPrecio() {
-        return precio;
-    }
-
-
+    // ---------- Setters ----------
 
     public void setNombre(String nombre) {
         if (nombre == null || nombre.trim().isEmpty()) {
@@ -45,8 +40,9 @@ public abstract class ItemCatalogo {
         this.precio = precio;
     }
 
-
-
+    public void setActivo(boolean activo) {
+        this.activo = activo;
+    }
 
     public double calcularImporte(int cantidad) {
         if (cantidad <= 0) {
@@ -55,17 +51,16 @@ public abstract class ItemCatalogo {
         return precio * cantidad;
     }
 
-
     public abstract String getTipo();
 
     public abstract String toLinea();
 
     protected String lineaBase() {
-        return codigo + ";" + nombre + ";" + precio;
+        // Se añade el estado 'activo' para que se guarde en el archivo .txt
+        return codigo + ";" + nombre + ";" + precio + ";" + activo;
     }
 
     // ---------- Object ----------
-
 
     @Override
     public boolean equals(Object obj) {
@@ -82,6 +77,6 @@ public abstract class ItemCatalogo {
 
     @Override
     public String toString() {
-        return getTipo() + " [" + codigo + "] " + nombre + " - S/ " + String.format("%.2f", precio);
+        return getTipo() + " [" + codigo + "] " + nombre + " - S/ " + String.format("%.2f", precio) + (activo ? "" : " (INACTIVO)");
     }
 }

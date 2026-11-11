@@ -9,9 +9,7 @@ public class Repuesto extends ItemCatalogo {
         setStock(stock);
     }
 
-    public int getStock() {
-        return stock;
-    }
+    public int getStock() { return stock; }
 
     public void setStock(int stock) {
         if (stock < 0) {
@@ -53,10 +51,13 @@ public class Repuesto extends ItemCatalogo {
 
     public static Repuesto desdeLinea(String linea) {
         String[] p = linea.split(";");
-        if (p.length != 5 || !p[0].equals("REPUESTO")) {
+        // Nuevo formato: TIPO(0); CODIGO(1); NOMBRE(2); PRECIO(3); ACTIVO(4); STOCK(5)
+        if (p.length != 6 || !p[0].equals("REPUESTO")) {
             throw new IllegalArgumentException("Línea de repuesto inválida: " + linea);
         }
-        return new Repuesto(p[1], p[2], Double.parseDouble(p[3]), Integer.parseInt(p[4]));
+        Repuesto r = new Repuesto(p[1], p[2], Double.parseDouble(p[3]), Integer.parseInt(p[5]));
+        r.setActivo(Boolean.parseBoolean(p[4]));
+        return r;
     }
 
     @Override

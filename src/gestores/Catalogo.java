@@ -1,4 +1,8 @@
-package modelo;
+package gestores;
+
+import modelo.ItemCatalogo;
+import modelo.Repuesto;
+import modelo.Servicio;
 
 public class Catalogo {
 
@@ -25,9 +29,21 @@ public class Catalogo {
     }
 
     public boolean crear(ItemCatalogo item) {
-        if (item == null || estaLleno() || existe(item.getCodigo())) {
+        if (item == null || estaLleno()) {
             return false;
         }
+        
+        // Evitar duplicados por código y permitir reactivación
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].getCodigo().equals(item.getCodigo())) {
+                if (!items[i].isActivo()) {
+                    items[i] = item; // Sobrescribe y reactiva el ítem
+                    return true;
+                }
+                return false; // Ya existe y está activo
+            }
+        }
+        
         items[cantidad++] = item;
         return true;
     }
@@ -37,7 +53,8 @@ public class Catalogo {
             return null;
         }
         for (int i = 0; i < cantidad; i++) {
-            if (items[i].getCodigo().equals(codigo.trim())) {
+            // Solo retorna el ítem si está activo
+            if (items[i].isActivo() && items[i].getCodigo().equals(codigo.trim())) {
                 return items[i];
             }
         }
@@ -49,16 +66,20 @@ public class Catalogo {
             return new ItemCatalogo[0];
         }
         String criterio = texto.trim().toLowerCase();
+        
+        // Primero contamos cuántos ítems activos coinciden
         int total = 0;
         for (int i = 0; i < cantidad; i++) {
-            if (items[i].getNombre().toLowerCase().contains(criterio)) {
+            if (items[i].isActivo() && items[i].getNombre().toLowerCase().contains(criterio)) {
                 total++;
             }
         }
+        
+        // Luego creamos el arreglo con el tamaño exacto y lo llenamos
         ItemCatalogo[] resultado = new ItemCatalogo[total];
         int k = 0;
         for (int i = 0; i < cantidad; i++) {
-            if (items[i].getNombre().toLowerCase().contains(criterio)) {
+            if (items[i].isActivo() && items[i].getNombre().toLowerCase().contains(criterio)) {
                 resultado[k++] = items[i];
             }
         }
@@ -66,9 +87,20 @@ public class Catalogo {
     }
 
     public ItemCatalogo[] listar() {
-        ItemCatalogo[] copia = new ItemCatalogo[cantidad];
+        // Contar activos para dimensionar el arreglo
+        int totalActivos = 0;
         for (int i = 0; i < cantidad; i++) {
-            copia[i] = items[i];
+            if (items[i].isActivo()) {
+                totalActivos++;
+            }
+        }
+        
+        ItemCatalogo[] copia = new ItemCatalogo[totalActivos];
+        int k = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].isActivo()) {
+                copia[k++] = items[i];
+            }
         }
         return copia;
     }
@@ -91,16 +123,14 @@ public class Catalogo {
         return true;
     }
 
-    public boolean eliminar(String codigo) {
+    // Reemplaza eliminar() por darDeBaja() para mantener el historial
+    public boolean darDeBaja(String codigo) {
         if (codigo == null) {
             return false;
         }
         for (int i = 0; i < cantidad; i++) {
-            if (items[i].getCodigo().equals(codigo.trim())) {
-                for (int j = i; j < cantidad - 1; j++) {
-                    items[j] = items[j + 1];
-                }
-                items[--cantidad] = null;
+            if (items[i].getCodigo().equals(codigo.trim()) && items[i].isActivo()) {
+                items[i].setActivo(false); // Baja lógica
                 return true;
             }
         }
@@ -122,6 +152,8 @@ public class Catalogo {
     }
 
     public String[] toLineas() {
+        // Al guardar en archivos, se exportan TODOS (activos e inactivos)
+        // para que las órdenes del historial no pierdan su referencia al cargarse.
         String[] lineas = new String[cantidad];
         for (int i = 0; i < cantidad; i++) {
             lineas[i] = items[i].toLinea();
