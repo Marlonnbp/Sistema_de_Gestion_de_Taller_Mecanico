@@ -1,7 +1,10 @@
 package vista;
 
 import gestores.GestorClientes;
+import gestores.GestorOrdenes;
+import gestores.GestorVehiculos;
 import modelo.Cliente;
+import modelo.Vehiculo;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -12,6 +15,8 @@ import java.awt.event.MouseEvent;
 public class PanelClientes extends JPanel {
 
     private final GestorClientes gestorClientes;
+    private final GestorOrdenes gestorOrdenes;
+    private final GestorVehiculos gestorVehiculos;
 
     private JTextField txtDni;
     private JTextField txtNombres;
@@ -22,8 +27,10 @@ public class PanelClientes extends JPanel {
     private JTable tablaClientes;
     private DefaultTableModel modeloTabla;
 
-    public PanelClientes(GestorClientes gestorClientes) {
+    public PanelClientes(GestorClientes gestorClientes, GestorOrdenes gestorOrdenes, GestorVehiculos gestorVehiculos) {
         this.gestorClientes = gestorClientes;
+        this.gestorOrdenes = gestorOrdenes;
+        this.gestorVehiculos = gestorVehiculos;
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
@@ -96,8 +103,17 @@ public class PanelClientes extends JPanel {
         gbc.gridx = 0;
         gbc.gridy = 4;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(15, 6, 6, 6);
+        gbc.insets = new Insets(12, 6, 6, 6);
         panelFormulario.add(panelBotones, gbc);
+
+        // Botón RF-06: Consultar vehículos del cliente
+        JButton btnVerVehiculos = new JButton("🚗 Consultar Vehículos (RF-06)");
+        btnVerVehiculos.setBackground(new Color(23, 162, 184));
+        btnVerVehiculos.setForeground(Color.WHITE);
+        btnVerVehiculos.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        gbc.gridy = 5;
+        gbc.insets = new Insets(6, 6, 6, 6);
+        panelFormulario.add(btnVerVehiculos, gbc);
 
         panelCentral.add(panelFormulario, BorderLayout.WEST);
 
@@ -127,6 +143,7 @@ public class PanelClientes extends JPanel {
         btnDarBaja.addActionListener(e -> darDeBajaCliente());
         btnLimpiar.addActionListener(e -> limpiarFormulario());
         btnBuscar.addActionListener(e -> buscarCliente());
+        btnVerVehiculos.addActionListener(e -> consultarVehiculosCliente());
         btnRestablecer.addActionListener(e -> {
             txtBuscar.setText("");
             cargarTabla();
@@ -205,8 +222,24 @@ public class PanelClientes extends JPanel {
             return;
         }
 
+        Cliente cliente = gestorClientes.leer(dni);
+        if (cliente == null) {
+            JOptionPane.showMessageDialog(this, "No se encontró ningún cliente activo con el DNI indicado.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // RF-04: El sistema verifica que el cliente no tenga órdenes activas
+        if (gestorOrdenes != null && gestorOrdenes.tieneOrdenesActivas(cliente)) {
+            JOptionPane.showMessageDialog(this,
+                    "Rechazo de baja (RF-04):\nNo se puede dar de baja al cliente '" + cliente.getNombres() + 
+                    "' porque tiene órdenes de trabajo activas en el taller.",
+                    "Baja Rechazada",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int confirmacion = JOptionPane.showConfirmDialog(this,
-                "¿Está seguro de dar de baja al cliente con DNI " + dni + "?",
+                "¿Está seguro de dar de baja al cliente con DNI " + dni + " (" + cliente.getNombres() + ")?",
                 "Confirmar Baja Lógica",
                 JOptionPane.YES_NO_OPTION);
 
@@ -217,7 +250,7 @@ public class PanelClientes extends JPanel {
                 cargarTabla();
                 limpiarFormulario();
             } else {
-                JOptionPane.showMessageDialog(this, "No se encontró ningún cliente activo con ese DNI.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "No se pudo procesar la baja del cliente.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -276,6 +309,71 @@ public class PanelClientes extends JPanel {
         txtTelefono.setText("");
         txtCorreo.setText("");
         tablaClientes.clearSelection();
+    }
+
+    // RF-06: Consultar vehículos del cliente
+    private void consultarVehiculosCliente() {
+        String dni = txtDni.getText().trim();
+        if (dni.isEmpty()) {
+            JOptionPane.showMessageDialog(this, 
+                    "Seleccione un cliente de la tabla o ingrese su DNI para consultar sus vehículos.", 
+                    "Validación (RF-06)", 
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Precondición: El cliente existe
+        Cliente c = gestorClientes.leer(dni);
+        if (c == null) {
+            JOptionPane.showMessageDialog(this, 
+                    "Precondición no cumplida (RF-06): El cliente con DNI " + dni + " no existe o está inactivo.", 
+                    "Cliente no encontrado", 
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (gestorVehiculos == null) {
+            JOptionPane.showMessageDialog(this, "Gestor de vehículos no disponible.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Proceso: El sistema recupera los vehículos asociados
+        Vehiculo[] vehiculos = gestorVehiculos.listarPorCliente(c);
+
+        if (vehiculos.length == 0) {
+            JOptionPane.showMessageDialog(this, 
+                    "El cliente " + c.getNombres() + " (DNI: " + c.getDni() + ") no tiene vehículos asociados registrados actualmente.", 
+                    "Vehículos del Cliente (RF-06)", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // Salidas / Postcondición: La lista se muestra al usuario
+        String[] columnas = {"Placa", "Año", "Color", "Kilometraje", "Estado"};
+        DefaultTableModel model = new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
+
+        for (Vehiculo v : vehiculos) {
+            model.addRow(new Object[]{
+                    v.getPlaca(),
+                    v.getAnio(),
+                    v.getColor(),
+                    v.getKilometraje() + " km",
+                    v.isActivo() ? "Activo" : "Inactivo"
+            });
+        }
+
+        JTable table = new JTable(model);
+        table.setRowHeight(22);
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setPreferredSize(new Dimension(520, 180));
+
+        JOptionPane.showMessageDialog(this, scroll, 
+                "Vehículos de " + c.getNombres() + " (DNI: " + c.getDni() + ") - RF-06", 
+                JOptionPane.PLAIN_MESSAGE);
     }
 }
 

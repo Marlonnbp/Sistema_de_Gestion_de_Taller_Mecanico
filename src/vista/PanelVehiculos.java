@@ -1,6 +1,7 @@
 package vista;
 
 import gestores.GestorClientes;
+import gestores.GestorOrdenes;
 import gestores.GestorVehiculos;
 import modelo.Cliente;
 import modelo.Vehiculo;
@@ -15,6 +16,7 @@ public class PanelVehiculos extends JPanel {
 
     private final GestorVehiculos gestorVehiculos;
     private final GestorClientes gestorClientes;
+    private final GestorOrdenes gestorOrdenes;
 
     private JTextField txtPlaca;
     private JTextField txtAnio;
@@ -26,9 +28,10 @@ public class PanelVehiculos extends JPanel {
     private JTable tablaVehiculos;
     private DefaultTableModel modeloTabla;
 
-    public PanelVehiculos(GestorVehiculos gestorVehiculos, GestorClientes gestorClientes) {
+    public PanelVehiculos(GestorVehiculos gestorVehiculos, GestorClientes gestorClientes, GestorOrdenes gestorOrdenes) {
         this.gestorVehiculos = gestorVehiculos;
         this.gestorClientes = gestorClientes;
+        this.gestorOrdenes = gestorOrdenes;
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
@@ -46,10 +49,10 @@ public class PanelVehiculos extends JPanel {
 
         JPanel panelBusqueda = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         txtBuscarPlaca = new JTextField(12);
-        JButton btnBuscar = new JButton("Buscar Placa");
+        JButton btnBuscar = new JButton("Buscar");
         JButton btnRestablecer = new JButton("Ver Todos");
 
-        panelBusqueda.add(new JLabel("Placa:"));
+        panelBusqueda.add(new JLabel("Placa o DNI Dueño:"));
         panelBusqueda.add(txtBuscarPlaca);
         panelBusqueda.add(btnBuscar);
         panelBusqueda.add(btnRestablecer);
@@ -246,9 +249,25 @@ public class PanelVehiculos extends JPanel {
             return;
         }
 
+        Vehiculo v = gestorVehiculos.leer(placa);
+        if (v == null) {
+            JOptionPane.showMessageDialog(this, "No se encontró un vehículo activo con la placa indicada.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // RF-08: El sistema verifica que no tenga órdenes activas
+        if (gestorOrdenes != null && gestorOrdenes.tieneOrdenActiva(v)) {
+            JOptionPane.showMessageDialog(this,
+                    "Rechazo de baja (RF-08):\nNo se puede dar de baja al vehículo con placa " + placa + 
+                    " porque tiene una orden de trabajo activa en el taller.",
+                    "Baja Rechazada",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         int confirmacion = JOptionPane.showConfirmDialog(this,
                 "¿Está seguro de dar de baja al vehículo con placa " + placa + "?",
-                "Confirmar Baja",
+                "Confirmar Baja Lógica",
                 JOptionPane.YES_NO_OPTION);
 
         if (confirmacion == JOptionPane.YES_OPTION) {
@@ -258,19 +277,20 @@ public class PanelVehiculos extends JPanel {
                 cargarTabla();
                 limpiarFormulario();
             } else {
-                JOptionPane.showMessageDialog(this, "No se encontró un vehículo activo con esa placa.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "No se pudo procesar la baja del vehículo.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
     private void buscarVehiculo() {
-        String placa = txtBuscarPlaca.getText().trim();
-        if (placa.isEmpty()) {
+        String criterio = txtBuscarPlaca.getText().trim();
+        if (criterio.isEmpty()) {
             cargarTabla();
             return;
         }
 
-        Vehiculo v = gestorVehiculos.leer(placa);
+        // 1. Intentar buscar por placa exacta
+        Vehiculo v = gestorVehiculos.leer(criterio);
         modeloTabla.setRowCount(0);
         if (v != null) {
             modeloTabla.addRow(new Object[]{
@@ -278,12 +298,32 @@ public class PanelVehiculos extends JPanel {
                     v.getAnio(),
                     v.getColor(),
                     v.getKilometraje(),
-                    v.getPropietario() != null ? v.getPropietario().getNombres() : "Sin dueño",
+                    v.getPropietario() != null ? (v.getPropietario().getDni() + " - " + v.getPropietario().getNombres()) : "Sin dueño",
                     v.isActivo() ? "Activo" : "Inactivo"
             });
-        } else {
-            JOptionPane.showMessageDialog(this, "No se encontró vehículo activo con placa: " + placa, "Búsqueda", JOptionPane.INFORMATION_MESSAGE);
+            return;
         }
+
+        // 2. Intentar buscar si el criterio es el DNI de un cliente (RF-06)
+        Cliente c = gestorClientes.leer(criterio);
+        if (c != null) {
+            Vehiculo[] listaCliente = gestorVehiculos.listarPorCliente(c);
+            if (listaCliente.length > 0) {
+                for (Vehiculo veh : listaCliente) {
+                    modeloTabla.addRow(new Object[]{
+                            veh.getPlaca(),
+                            veh.getAnio(),
+                            veh.getColor(),
+                            veh.getKilometraje(),
+                            veh.getPropietario() != null ? (veh.getPropietario().getDni() + " - " + veh.getPropietario().getNombres()) : "Sin dueño",
+                            veh.isActivo() ? "Activo" : "Inactivo"
+                    });
+                }
+                return;
+            }
+        }
+
+        JOptionPane.showMessageDialog(this, "No se encontró ningún vehículo activo por placa o DNI de cliente: " + criterio, "Búsqueda", JOptionPane.INFORMATION_MESSAGE);
     }
 
     public void cargarTabla() {

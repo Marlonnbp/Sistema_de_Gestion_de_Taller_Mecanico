@@ -308,6 +308,18 @@ public class PanelOrdenes extends JPanel {
             return;
         }
 
+        // RF-17 Precondición: La orden debe estar en estado EN_DIAGNOSTICO (o COTIZADA para seguir añadiendo ítems)
+        if (orden.getEstado() != EstadoOrden.EN_DIAGNOSTICO && orden.getEstado() != EstadoOrden.COTIZADA) {
+            JOptionPane.showMessageDialog(this,
+                    "Precondición no cumplida (RF-17 - Elaborar Cotización):\n" +
+                    "Para cotizar servicios o repuestos, la orden debe estar en estado 'EN_DIAGNOSTICO'.\n" +
+                    "Estado actual de la orden " + orden.getCodigo() + ": " + orden.getEstado() + ".\n" +
+                    "Cambie primero el estado a 'EN_DIAGNOSTICO' con el botón '⚙️ Cambiar Estado'.",
+                    "Precondición RF-17 no cumplida",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         ItemCatalogo[] disponibles = catalogo.listar();
         if (disponibles.length == 0) {
             JOptionPane.showMessageDialog(this, "El catálogo está vacío. Agregue servicios o repuestos en la pestaña Catálogo.", "Catálogo Vacío", JOptionPane.WARNING_MESSAGE);
@@ -328,14 +340,37 @@ public class PanelOrdenes extends JPanel {
         panelDialogo.add(new JLabel("Cantidad:"));
         panelDialogo.add(spinnerCantidad);
 
-        int opcion = JOptionPane.showConfirmDialog(this, panelDialogo, "Agregar Ítem a Orden " + orden.getCodigo(), JOptionPane.OK_CANCEL_OPTION);
+        int opcion = JOptionPane.showConfirmDialog(this, panelDialogo, "Elaborar Cotización - Orden " + orden.getCodigo(), JOptionPane.OK_CANCEL_OPTION);
         if (opcion == JOptionPane.OK_OPTION) {
             int indice = comboItems.getSelectedIndex();
             ItemCatalogo seleccionado = disponibles[indice];
             int cant = (Integer) spinnerCantidad.getValue();
 
+            // Validar existencia de stock al cotizar si es un repuesto
+            if (seleccionado instanceof Repuesto) {
+                Repuesto rep = (Repuesto) seleccionado;
+                if (!rep.hayStock(cant)) {
+                    JOptionPane.showMessageDialog(this,
+                            "Stock insuficiente en almacén para cotizar este repuesto.\n" +
+                            "Repuesto: " + rep.getNombre() + "\n" +
+                            "Stock disponible: " + rep.getStock() + " unidades\n" +
+                            "Cantidad requerida: " + cant + " unidades",
+                            "Stock Insuficiente",
+                            JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+            }
+
             orden.agregarItem(seleccionado, cant);
-            JOptionPane.showMessageDialog(this, "Ítem agregado con éxito.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+
+            // RF-17 Postcondición: La orden queda cotizada y pendiente de aprobación
+            orden.cambiarEstado(EstadoOrden.COTIZADA);
+
+            JOptionPane.showMessageDialog(this, 
+                    "Ítem agregado con éxito a la cotización.\n" +
+                    "La orden " + orden.getCodigo() + " ahora se encuentra en estado 'COTIZADA' (pendiente de aprobación).", 
+                    "Cotización Elaborada (RF-17)", 
+                    JOptionPane.INFORMATION_MESSAGE);
             cargarItemsDeOrdenSeleccionada();
             cargarTablaOrdenes();
         }
@@ -354,7 +389,26 @@ public class PanelOrdenes extends JPanel {
         int res = JOptionPane.showConfirmDialog(this, comboEstados, "Cambiar estado de orden " + orden.getCodigo(), JOptionPane.OK_CANCEL_OPTION);
         if (res == JOptionPane.OK_OPTION) {
             EstadoOrden nuevoEstado = (EstadoOrden) comboEstados.getSelectedItem();
-            orden.cambiarEstado(nuevoEstado);
+
+            // Momento A: Al APROBAR la orden se descuenta el stock de repuestos
+            if (nuevoEstado == EstadoOrden.APROBADA && orden.getEstado() != EstadoOrden.APROBADA) {
+                if (!orden.tieneStockDisponibleParaAprobar()) {
+                    JOptionPane.showMessageDialog(this,
+                            "No se puede aprobar la orden porque uno o más repuestos cotizados ya no cuentan con stock suficiente en el almacén.",
+                            "Stock Insuficiente al Aprobar",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                orden.aprobar();
+                JOptionPane.showMessageDialog(this,
+                        "Orden " + orden.getCodigo() + " APROBADA exitosamente.\n" +
+                        "Se han retirado y descontado del stock del almacén los repuestos cotizados.",
+                        "Orden Aprobada - Stock Actualizado",
+                        JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                orden.cambiarEstado(nuevoEstado);
+            }
+
             cargarTablaOrdenes();
             cargarItemsDeOrdenSeleccionada();
         }
@@ -369,9 +423,14 @@ public class PanelOrdenes extends JPanel {
 
         int resp = JOptionPane.showConfirmDialog(this, "¿Está seguro de anular la orden " + orden.getCodigo() + "?", "Confirmar Anulación", JOptionPane.YES_NO_OPTION);
         if (resp == JOptionPane.YES_OPTION) {
+            boolean estabaAprobada = (orden.getEstado() == EstadoOrden.APROBADA || orden.getEstado() == EstadoOrden.LISTA_PARA_ENTREGA);
             boolean anulada = gestorOrdenes.anular(orden.getCodigo());
             if (anulada) {
-                JOptionPane.showMessageDialog(this, "Orden anulada.", "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                String msj = "Orden " + orden.getCodigo() + " anulada.";
+                if (estabaAprobada) {
+                    msj += "\nLos repuestos asignados fueron devueltos automáticamente al stock del almacén.";
+                }
+                JOptionPane.showMessageDialog(this, msj, "Aviso de Anulación", JOptionPane.INFORMATION_MESSAGE);
                 cargarTablaOrdenes();
                 cargarItemsDeOrdenSeleccionada();
             } else {

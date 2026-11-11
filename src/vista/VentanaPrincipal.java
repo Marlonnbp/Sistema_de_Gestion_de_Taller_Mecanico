@@ -57,8 +57,8 @@ public class VentanaPrincipal extends javax.swing.JFrame {
 
     private void construirInterfaz() {
         // 1. Crear paneles de interfaz conectados a los gestores cargados
-        panelClientes = new PanelClientes(gestorClientes);
-        panelVehiculos = new PanelVehiculos(gestorVehiculos, gestorClientes);
+        panelClientes = new PanelClientes(gestorClientes, gestorOrdenes, gestorVehiculos);
+        panelVehiculos = new PanelVehiculos(gestorVehiculos, gestorClientes, gestorOrdenes);
         panelOrdenes = new PanelOrdenes(gestorOrdenes, gestorClientes, gestorVehiculos, catalogo);
         panelCatalogo = new PanelCatalogo(catalogo, gestorOrdenes, historialFacturas);
 

@@ -57,15 +57,61 @@ public class OrdenTrabajo {
         return calcularSubtotal() + calcularIGV();
     }
 
+    public boolean tieneStockDisponibleParaAprobar() {
+        for (int i = 0; i < cantidadItems; i++) {
+            if (items[i].getReferencia() instanceof Repuesto) {
+                Repuesto r = (Repuesto) items[i].getReferencia();
+                if (!r.hayStock(items[i].getCantidad())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public void descontarStockRepuestos() {
+        for (int i = 0; i < cantidadItems; i++) {
+            if (items[i].getReferencia() instanceof Repuesto) {
+                Repuesto r = (Repuesto) items[i].getReferencia();
+                r.descontarStock(items[i].getCantidad());
+            }
+        }
+    }
+
+    public void reponerStockRepuestos() {
+        for (int i = 0; i < cantidadItems; i++) {
+            if (items[i].getReferencia() instanceof Repuesto) {
+                Repuesto r = (Repuesto) items[i].getReferencia();
+                r.reponerStock(items[i].getCantidad());
+            }
+        }
+    }
+
     public void cambiarEstado(EstadoOrden nuevo) {
+        if (nuevo == EstadoOrden.APROBADA) {
+            aprobar();
+            return;
+        }
+        if (nuevo == EstadoOrden.ANULADA) {
+            anular();
+            return;
+        }
         this.estado = nuevo;
     }
 
     public void aprobar() {
+        // Al aprobar la orden, se retiran físicamente los repuestos del almacén
+        if (this.estado != EstadoOrden.APROBADA && this.estado != EstadoOrden.LISTA_PARA_ENTREGA && this.estado != EstadoOrden.FACTURADA) {
+            descontarStockRepuestos();
+        }
         this.estado = EstadoOrden.APROBADA;
     }
 
     public void anular() {
+        // Si ya había sido aprobada o estaba lista, se reponen los repuestos de vuelta al almacén
+        if (this.estado == EstadoOrden.APROBADA || this.estado == EstadoOrden.LISTA_PARA_ENTREGA) {
+            reponerStockRepuestos();
+        }
         this.estado = EstadoOrden.ANULADA;
     }
 
