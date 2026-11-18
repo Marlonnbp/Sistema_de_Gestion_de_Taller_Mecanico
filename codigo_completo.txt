@@ -1,0 +1,3308 @@
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\gestores\Catalogo.java ===== 
+package gestores;
+
+import modelo.ItemCatalogo;
+import modelo.Repuesto;
+import modelo.Servicio;
+
+public class Catalogo {
+
+    private static final int CAPACIDAD = 100;
+
+    private final ItemCatalogo[] items;
+    private int cantidad;
+
+    public Catalogo() {
+        items = new ItemCatalogo[CAPACIDAD];
+        cantidad = 0;
+    }
+
+    public int getCantidad() {
+        return cantidad;
+    }
+
+    public boolean estaLleno() {
+        return cantidad == CAPACIDAD;
+    }
+
+    public boolean existe(String codigo) {
+        return leer(codigo) != null;
+    }
+
+    public boolean crear(ItemCatalogo item) {
+        if (item == null || estaLleno()) {
+            return false;
+        }
+        
+        // Evitar duplicados por código y permitir reactivación
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].getCodigo().equals(item.getCodigo())) {
+                if (!items[i].isActivo()) {
+                    items[i] = item; // Sobrescribe y reactiva el ítem
+                    return true;
+                }
+                return false; // Ya existe y está activo
+            }
+        }
+        
+        items[cantidad++] = item;
+        return true;
+    }
+
+    public ItemCatalogo leer(String codigo) {
+        if (codigo == null) {
+            return null;
+        }
+        for (int i = 0; i < cantidad; i++) {
+            // Solo retorna el ítem si está activo
+            if (items[i].isActivo() && items[i].getCodigo().equals(codigo.trim())) {
+                return items[i];
+            }
+        }
+        return null;
+    }
+
+    public ItemCatalogo[] buscarPorNombre(String texto) {
+        if (texto == null || texto.trim().isEmpty()) {
+            return new ItemCatalogo[0];
+        }
+        String criterio = texto.trim().toLowerCase();
+        
+        // Primero contamos cuántos ítems activos coinciden
+        int total = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].isActivo() && items[i].getNombre().toLowerCase().contains(criterio)) {
+                total++;
+            }
+        }
+        
+        // Luego creamos el arreglo con el tamaño exacto y lo llenamos
+        ItemCatalogo[] resultado = new ItemCatalogo[total];
+        int k = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].isActivo() && items[i].getNombre().toLowerCase().contains(criterio)) {
+                resultado[k++] = items[i];
+            }
+        }
+        return resultado;
+    }
+
+    public ItemCatalogo[] listar() {
+        // Contar activos para dimensionar el arreglo
+        int totalActivos = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].isActivo()) {
+                totalActivos++;
+            }
+        }
+        
+        ItemCatalogo[] copia = new ItemCatalogo[totalActivos];
+        int k = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].isActivo()) {
+                copia[k++] = items[i];
+            }
+        }
+        return copia;
+    }
+
+    public boolean modificarPrecio(String codigo, double nuevoPrecio) {
+        ItemCatalogo item = leer(codigo);
+        if (item == null) {
+            return false;
+        }
+        item.setPrecio(nuevoPrecio);
+        return true;
+    }
+
+    public boolean modificarStock(String codigo, int nuevoStock) {
+        ItemCatalogo item = leer(codigo);
+        if (!(item instanceof Repuesto)) {
+            return false;
+        }
+        ((Repuesto) item).setStock(nuevoStock);
+        return true;
+    }
+
+    public boolean actualizar(String codigo, String nuevoNombre, double nuevoPrecio, int nuevoStock) {
+        ItemCatalogo item = leer(codigo);
+        if (item == null) {
+            return false;
+        }
+        item.setNombre(nuevoNombre);
+        item.setPrecio(nuevoPrecio);
+        if (item instanceof Repuesto && nuevoStock >= 0) {
+            ((Repuesto) item).setStock(nuevoStock);
+        }
+        return true;
+    }
+
+    // Reemplaza eliminar() por darDeBaja() para mantener el historial
+    public boolean darDeBaja(String codigo) {
+        if (codigo == null) {
+            return false;
+        }
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].getCodigo().equals(codigo.trim()) && items[i].isActivo()) {
+                items[i].setActivo(false); // Baja lógica
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean cargarDesdeLinea(String linea) {
+        if (linea == null || linea.trim().isEmpty()) {
+            return false;
+        }
+        String tipo = linea.split(";")[0];
+        if (tipo.equals("REPUESTO")) {
+            return crear(Repuesto.desdeLinea(linea));
+        }
+        if (tipo.equals("SERVICIO")) {
+            return crear(Servicio.desdeLinea(linea));
+        }
+        throw new IllegalArgumentException("Tipo de ítem desconocido: " + tipo);
+    }
+
+    public String[] toLineas() {
+        // Al guardar en archivos, se exportan TODOS (activos e inactivos)
+        // para que las órdenes del historial no pierdan su referencia al cargarse.
+        String[] lineas = new String[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            lineas[i] = items[i].toLinea();
+        }
+        return lineas;
+    }
+    
+    public ItemCatalogo leerCualquiera(String codigo) {
+        if (codigo == null) return null;
+        for (int i = 0; i < cantidad; i++) {
+            if (items[i].getCodigo().equals(codigo.trim())) {
+                return items[i];
+            }
+        }
+        return null;
+    }
+}
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\gestores\GestorClientes.java ===== 
+package gestores;
+
+import modelo.Cliente;
+
+public class GestorClientes {
+    private Cliente[] clientes;
+    private int cantidad;
+
+    public GestorClientes(int capacidadMaxima) {
+        this.clientes = new Cliente[capacidadMaxima];
+        this.cantidad = 0;
+    }
+
+    public boolean crear(Cliente c) {
+        if (cantidad >= clientes.length) return false;
+        
+        // Evitar duplicados por DNI
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].getDni().equals(c.getDni())) {
+                // Reactivación si estaba dado de baja
+                if (!clientes[i].isActivo()) {
+                    clientes[i] = c; 
+                    return true;
+                }
+                return false; // Ya existe y está activo
+            }
+        }
+        
+        clientes[cantidad] = c;
+        cantidad++;
+        return true;
+    }
+
+    public Cliente leer(String dniONombre) {
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].isActivo()) {
+                if (clientes[i].getDni().equals(dniONombre) || 
+                    clientes[i].getNombres().equalsIgnoreCase(dniONombre)) {
+                    return clientes[i];
+                }
+            }
+        }
+        return null;
+    }
+
+    public boolean actualizar(Cliente c) {
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].getDni().equals(c.getDni()) && clientes[i].isActivo()) {
+                clientes[i] = c;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean darDeBaja(String dni) {
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].getDni().equals(dni) && clientes[i].isActivo()) {
+                clientes[i].setActivo(false);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public Cliente[] listarTodos() {
+        Cliente[] copia = new Cliente[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            copia[i] = clientes[i];
+        }
+        return copia;
+    }
+
+    public Cliente[] listar() {
+        return listarTodos();
+    }
+
+    public Cliente leerCualquiera(String dni) {
+        if (dni == null) return null;
+        for (int i = 0; i < cantidad; i++) {
+            if (clientes[i].getDni().equals(dni)) {
+                return clientes[i];
+            }
+        }
+        return null;
+    }
+}
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\gestores\GestorOrdenes.java ===== 
+package gestores;
+
+import modelo.Cliente;
+import modelo.OrdenTrabajo;
+import modelo.Vehiculo;
+import modelo.EstadoOrden;
+
+public class GestorOrdenes {
+    private OrdenTrabajo[] ordenes;
+    private int cantidad;
+
+    public GestorOrdenes(int capacidadMaxima) {
+        this.ordenes = new OrdenTrabajo[capacidadMaxima];
+        this.cantidad = 0;
+    }
+
+    public OrdenTrabajo crear(Cliente c, Vehiculo v, String motivo) {
+        if (cantidad >= ordenes.length) return null;
+        
+        // Generador simple de código
+        String codigo = "ORD-" + String.format("%04d", cantidad + 1);
+        OrdenTrabajo nueva = new OrdenTrabajo(codigo, motivo, c, v);
+        
+        ordenes[cantidad] = nueva;
+        cantidad++;
+        return nueva;
+    }
+
+    public OrdenTrabajo[] leer(String criterio) {
+        // Cuenta coincidencias para dimensionar el arreglo de retorno
+        int coincidencias = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (ordenes[i].getCodigo().equalsIgnoreCase(criterio) || 
+                ordenes[i].getCliente().getDni().equals(criterio) ||
+                ordenes[i].getVehiculo().getPlaca().equalsIgnoreCase(criterio)) {
+                coincidencias++;
+            }
+        }
+        
+        OrdenTrabajo[] resultado = new OrdenTrabajo[coincidencias];
+        int indice = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (ordenes[i].getCodigo().equalsIgnoreCase(criterio) || 
+                ordenes[i].getCliente().getDni().equals(criterio) ||
+                ordenes[i].getVehiculo().getPlaca().equalsIgnoreCase(criterio)) {
+                resultado[indice++] = ordenes[i];
+            }
+        }
+        return resultado;
+    }
+
+    public boolean actualizar(OrdenTrabajo o) {
+        for (int i = 0; i < cantidad; i++) {
+            if (ordenes[i].getCodigo().equalsIgnoreCase(o.getCodigo())) {
+                ordenes[i] = o;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean anular(String codigo) {
+        for (int i = 0; i < cantidad; i++) {
+            if (ordenes[i].getCodigo().equalsIgnoreCase(codigo)) {
+                if (ordenes[i].estaActiva()) {
+                    ordenes[i].anular();
+                    return true;
+                }
+                return false;
+            }
+        }
+        return false;
+    }
+
+    public boolean tieneOrdenesActivas(Cliente c) {
+        for (int i = 0; i < cantidad; i++) {
+            if (ordenes[i].getCliente().getDni().equals(c.getDni()) && ordenes[i].estaActiva()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean tieneOrdenActiva(Vehiculo v) {
+        for (int i = 0; i < cantidad; i++) {
+            if (ordenes[i].getVehiculo().getPlaca().equalsIgnoreCase(v.getPlaca()) && ordenes[i].estaActiva()) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public OrdenTrabajo[] listarTodos() {
+        OrdenTrabajo[] copia = new OrdenTrabajo[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            copia[i] = ordenes[i];
+        }
+        return copia;
+    }
+
+    public OrdenTrabajo[] listar() {
+        return listarTodos();
+    }
+
+    public OrdenTrabajo leerCualquiera(String codigo) {
+        if (codigo == null) return null;
+        for (int i = 0; i < cantidad; i++) {
+            if (ordenes[i].getCodigo().equalsIgnoreCase(codigo)) {
+                return ordenes[i];
+            }
+        }
+        return null;
+    }
+
+    public void agregarDesdeArchivo(OrdenTrabajo o) {
+        if (cantidad < ordenes.length) {
+            ordenes[cantidad++] = o;
+        }
+    }
+}
+
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\gestores\GestorVehiculos.java ===== 
+package gestores;
+
+import modelo.Cliente;
+import modelo.Vehiculo;
+
+public class GestorVehiculos {
+    private Vehiculo[] vehiculos;
+    private int cantidad;
+
+    public GestorVehiculos(int capacidadMaxima) {
+        this.vehiculos = new Vehiculo[capacidadMaxima];
+        this.cantidad = 0;
+    }
+
+    public boolean crear(Vehiculo v) {
+        if (cantidad >= vehiculos.length) return false;
+        
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].getPlaca().equalsIgnoreCase(v.getPlaca())) {
+                // Reactivación si estaba dado de baja
+                if (!vehiculos[i].isActivo()) {
+                    vehiculos[i] = v; 
+                    return true;
+                }
+                return false;
+            }
+        }
+        
+        vehiculos[cantidad] = v;
+        cantidad++;
+        return true;
+    }
+
+    public Vehiculo leer(String placa) {
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].isActivo() && vehiculos[i].getPlaca().equalsIgnoreCase(placa)) {
+                return vehiculos[i];
+            }
+        }
+        return null;
+    }
+
+    public Vehiculo[] listarPorCliente(Cliente c) {
+        int coincidencias = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].isActivo() && vehiculos[i].getPropietario().getDni().equals(c.getDni())) {
+                coincidencias++;
+            }
+        }
+
+        Vehiculo[] resultado = new Vehiculo[coincidencias];
+        int indice = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].isActivo() && vehiculos[i].getPropietario().getDni().equals(c.getDni())) {
+                resultado[indice] = vehiculos[i];
+                indice++;
+            }
+        }
+        return resultado;
+    }
+
+    public boolean actualizar(Vehiculo v) {
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].getPlaca().equalsIgnoreCase(v.getPlaca()) && vehiculos[i].isActivo()) {
+                vehiculos[i] = v;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean darDeBaja(String placa) {
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].getPlaca().equalsIgnoreCase(placa) && vehiculos[i].isActivo()) {
+                vehiculos[i].setActivo(false);
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    public Vehiculo[] listarTodos() {
+        Vehiculo[] copia = new Vehiculo[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            copia[i] = vehiculos[i];
+        }
+        return copia;
+    }
+
+    public Vehiculo[] listar() {
+        return listarTodos();
+    }
+
+    public Vehiculo leerCualquiera(String placa) {
+        if (placa == null) return null;
+        for (int i = 0; i < cantidad; i++) {
+            if (vehiculos[i].getPlaca().equalsIgnoreCase(placa)) {
+                return vehiculos[i];
+            }
+        }
+        return null;
+    }
+}
+
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\gestores\HistorialFacturas.java ===== 
+package gestores;
+
+import modelo.Factura;
+
+public class HistorialFacturas {
+    private Factura[] facturas;
+    private int cantidad;
+
+    public HistorialFacturas(int capacidadMaxima) {
+        this.facturas = new Factura[capacidadMaxima];
+        this.cantidad = 0;
+    }
+
+    public boolean crear(Factura f) {
+        if (cantidad >= facturas.length) return false;
+        
+        facturas[cantidad] = f;
+        cantidad++;
+        return true;
+    }
+
+    public Factura[] leer(String criterio) {
+        int coincidencias = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (facturas[i].getNumero().equalsIgnoreCase(criterio) ||
+                facturas[i].getOrden().getCliente().getDni().equals(criterio)) {
+                coincidencias++;
+            }
+        }
+
+        Factura[] resultado = new Factura[coincidencias];
+        int indice = 0;
+        for (int i = 0; i < cantidad; i++) {
+            if (facturas[i].getNumero().equalsIgnoreCase(criterio) ||
+                facturas[i].getOrden().getCliente().getDni().equals(criterio)) {
+                resultado[indice++] = facturas[i];
+            }
+        }
+        return resultado;
+    }
+    
+    public Factura[] listarTodos() {
+        Factura[] copia = new Factura[cantidad];
+        for (int i = 0; i < cantidad; i++) {
+            copia[i] = facturas[i];
+        }
+        return copia;
+    }
+
+    public Factura[] listar() {
+        return listarTodos();
+    }
+
+    public void agregarDesdeArchivo(Factura f) {
+        if (cantidad < facturas.length) {
+            facturas[cantidad++] = f;
+        }
+    }
+}
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Cliente.java ===== 
+package modelo;
+
+public class Cliente {
+    private String dni;
+    private String nombres;
+    private String telefono;
+    private String correo;
+    private boolean activo; // Agregado para la baja lógica
+
+    public Cliente(String dni, String nombres, String telefono, String correo) {
+        this.dni = dni;
+        this.nombres = nombres;
+        this.telefono = telefono;
+        this.correo = correo;
+        this.activo = true; // Por defecto nace activo
+    }
+
+    // Getters
+    public String getDni() { return dni; }
+    public String getNombres() { return nombres; }
+    public String getTelefono() { return telefono; }
+    public String getCorreo() { return correo; }
+    public boolean isActivo() { return activo; }
+
+    // Setters
+    public void setDni(String dni) { this.dni = dni; }
+    public void setNombres(String nombres) { this.nombres = nombres; }
+    public void setTelefono(String telefono) { this.telefono = telefono; }
+    public void setCorreo(String correo) { this.correo = correo; }
+    public void setActivo(boolean activo) { this.activo = activo; }
+}.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Diagnostico.java ===== 
+package modelo;
+
+import java.util.Date;
+
+public class Diagnostico {
+    private String descripcion;
+    private Date fechaRegistro;
+
+    // Usamos el constructor para hacer el registro inicial
+    public Diagnostico(String descripcion) {
+        registrar(descripcion);
+    }
+
+    // Cumple con el método + registrar(descripcion: String): void del diagrama
+    public void registrar(String descripcion) {
+        this.descripcion = descripcion;
+        this.fechaRegistro = new Date(); // Toma la fecha y hora exacta del registro
+    }
+
+    // Cumple con el método + consultar(): String del diagrama
+    public String consultar() {
+        return this.descripcion;
+    }
+
+    // Cumple con el método + actualizar(descripcion: String): void del diagrama
+    public void actualizar(String descripcion) {
+        this.descripcion = descripcion;
+        this.fechaRegistro = new Date(); // Actualiza la fecha a la de la última modificación
+    }
+
+    // Getters convencionales extra (muy útiles cuando toque guardar en archivos)
+    public String getDescripcion() {
+        return descripcion;
+    }
+
+    public Date getFechaRegistro() {
+        return fechaRegistro;
+    }
+}.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\EstadoOrden.java ===== 
+package modelo;
+
+public enum EstadoOrden {
+    EN_ESPERA,
+    EN_DIAGNOSTICO,
+    COTIZADA,
+    APROBADA,
+    LISTA_PARA_ENTREGA,
+    FACTURADA,
+    ANULADA
+}.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Factura.java ===== 
+package modelo;
+
+import java.util.Date;
+
+public class Factura {
+    private String numero;
+    private Date fechaEmision;
+    private double subtotal;
+    private double igv;
+    private double total;
+    private OrdenTrabajo orden;
+
+    public Factura(String numero) {
+        this.numero = numero;
+    }
+
+    public String getNumero() { return numero; }
+    public Date getFechaEmision() { return fechaEmision; }
+    public double getSubtotal() { return subtotal; }
+    public double getIgv() { return igv; }
+    public double getTotal() { return total; }
+    public OrdenTrabajo getOrden() { return orden; }
+
+    public void emitir(OrdenTrabajo orden) {
+        this.orden = orden;
+        this.fechaEmision = new Date();
+        this.subtotal = orden.calcularSubtotal();
+        this.igv = orden.calcularIGV();
+        this.total = orden.calcularTotal();
+        orden.cambiarEstado(EstadoOrden.FACTURADA);
+    }
+    
+    public Factura(String numero, java.util.Date fechaEmision, double subtotal, double igv, double total, OrdenTrabajo orden) {
+        this.numero = numero;
+        this.fechaEmision = fechaEmision;
+        this.subtotal = subtotal;
+        this.igv = igv;
+        this.total = total;
+        this.orden = orden;
+    }
+}
+.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\ItemCatalogo.java ===== 
+package modelo;
+
+public abstract class ItemCatalogo {
+
+    private final String codigo;
+    private String nombre;
+    private double precio;
+    private boolean activo; // Agregado para la baja lógica
+
+    public ItemCatalogo(String codigo, String nombre, double precio) {
+        if (codigo == null || codigo.trim().isEmpty()) {
+            throw new IllegalArgumentException("El código es obligatorio.");
+        }
+        this.codigo = codigo.trim();
+        setNombre(nombre);
+        setPrecio(precio);
+        this.activo = true; // Por defecto nace activo
+    }
+
+    // ---------- Getters ----------
+
+    public String getCodigo() { return codigo; }
+    public String getNombre() { return nombre; }
+    public double getPrecio() { return precio; }
+    public boolean isActivo() { return activo; }
+
+    // ---------- Setters ----------
+
+    public void setNombre(String nombre) {
+        if (nombre == null || nombre.trim().isEmpty()) {
+            throw new IllegalArgumentException("El nombre es obligatorio.");
+        }
+        this.nombre = nombre.trim();
+    }
+
+    public void setPrecio(double precio) {
+        if (precio < 0) {
+            throw new IllegalArgumentException("El precio no puede ser negativo.");
+        }
+        this.precio = precio;
+    }
+
+    public void setActivo(boolean activo) {
+        this.activo = activo;
+    }
+
+    public double calcularImporte(int cantidad) {
+        if (cantidad <= 0) {
+            throw new IllegalArgumentException("La cantidad debe ser mayor que cero.");
+        }
+        return precio * cantidad;
+    }
+
+    public abstract String getTipo();
+
+    public abstract String toLinea();
+
+    protected String lineaBase() {
+        // Se añade el estado 'activo' para que se guarde en el archivo .txt
+        return codigo + ";" + nombre + ";" + precio + ";" + activo;
+    }
+
+    // ---------- Object ----------
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof ItemCatalogo)) return false;
+        ItemCatalogo otro = (ItemCatalogo) obj;
+        return codigo.equals(otro.codigo);
+    }
+
+    @Override
+    public int hashCode() {
+        return codigo.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return getTipo() + " [" + codigo + "] " + nombre + " - S/ " + String.format("%.2f", precio) + (activo ? "" : " (INACTIVO)");
+    }
+}.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\ItemCotizacion.java ===== 
+package modelo;
+
+public class ItemCotizacion {
+    private ItemCatalogo referencia;
+    private int cantidad;
+    private double precioUnitario;
+
+    public ItemCotizacion(ItemCatalogo referencia, int cantidad) {
+        this.referencia = referencia;
+        this.cantidad = cantidad;
+        this.precioUnitario = referencia.getPrecio(); // Congela el precio al momento de cotizar
+    }
+
+    public ItemCatalogo getReferencia() { return referencia; }
+    public int getCantidad() { return cantidad; }
+    public double getPrecioUnitario() { return precioUnitario; }
+
+    public void setCantidad(int cantidad) { this.cantidad = cantidad; }
+    public void setPrecioUnitario(double precioUnitario) { this.precioUnitario = precioUnitario; }
+
+    public double calcularSubtotal() {
+        return cantidad * precioUnitario;
+    }
+}
+.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\OrdenTrabajo.java ===== 
+package modelo;
+
+import java.util.Date;
+
+public class OrdenTrabajo {
+    private String codigo;
+    private Date fechaIngreso;
+    private String motivoIngreso;
+    private EstadoOrden estado;
+    private ItemCotizacion[] items;
+    private int cantidadItems;
+    private Cliente cliente;
+    private Vehiculo vehiculo;
+
+    public OrdenTrabajo(String codigo, String motivoIngreso, Cliente cliente, Vehiculo vehiculo) {
+        this.codigo = codigo;
+        this.fechaIngreso = new Date();
+        this.motivoIngreso = motivoIngreso;
+        this.estado = EstadoOrden.EN_ESPERA;
+        this.items = new ItemCotizacion[50]; // Capacidad fija al no usar List
+        this.cantidadItems = 0;
+        this.cliente = cliente;
+        this.vehiculo = vehiculo;
+    }
+
+    public String getCodigo() { return codigo; }
+    public Date getFechaIngreso() { return fechaIngreso; }
+    public String getMotivoIngreso() { return motivoIngreso; }
+    public EstadoOrden getEstado() { return estado; }
+    public ItemCotizacion[] getItems() { return items; }
+    public int getCantidadItems() { return cantidadItems; }
+    public Cliente getCliente() { return cliente; }
+    public Vehiculo getVehiculo() { return vehiculo; }
+
+    public void setMotivoIngreso(String motivoIngreso) { this.motivoIngreso = motivoIngreso; }
+
+    public void agregarItem(ItemCatalogo item, int cantidad) {
+        if (cantidadItems < items.length) {
+            items[cantidadItems] = new ItemCotizacion(item, cantidad);
+            cantidadItems++;
+        }
+    }
+
+    public double calcularSubtotal() {
+        double subtotal = 0;
+        for (int i = 0; i < cantidadItems; i++) {
+            subtotal += items[i].calcularSubtotal();
+        }
+        return subtotal;
+    }
+
+    public double calcularIGV() {
+        return calcularSubtotal() * 0.18; // IGV 18% para Perú
+    }
+
+    public double calcularTotal() {
+        return calcularSubtotal() + calcularIGV();
+    }
+
+    public boolean tieneStockDisponibleParaAprobar() {
+        for (int i = 0; i < cantidadItems; i++) {
+            if (items[i].getReferencia() instanceof Repuesto) {
+                Repuesto r = (Repuesto) items[i].getReferencia();
+                if (!r.hayStock(items[i].getCantidad())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public void descontarStockRepuestos() {
+        for (int i = 0; i < cantidadItems; i++) {
+            if (items[i].getReferencia() instanceof Repuesto) {
+                Repuesto r = (Repuesto) items[i].getReferencia();
+                r.descontarStock(items[i].getCantidad());
+            }
+        }
+    }
+
+    public void reponerStockRepuestos() {
+        for (int i = 0; i < cantidadItems; i++) {
+            if (items[i].getReferencia() instanceof Repuesto) {
+                Repuesto r = (Repuesto) items[i].getReferencia();
+                r.reponerStock(items[i].getCantidad());
+            }
+        }
+    }
+
+    public void cambiarEstado(EstadoOrden nuevo) {
+        if (nuevo == EstadoOrden.APROBADA) {
+            aprobar();
+            return;
+        }
+        if (nuevo == EstadoOrden.ANULADA) {
+            anular();
+            return;
+        }
+        this.estado = nuevo;
+    }
+
+    public void aprobar() {
+        // Al aprobar la orden, se retiran físicamente los repuestos del almacén
+        if (this.estado != EstadoOrden.APROBADA && this.estado != EstadoOrden.LISTA_PARA_ENTREGA && this.estado != EstadoOrden.FACTURADA) {
+            descontarStockRepuestos();
+        }
+        this.estado = EstadoOrden.APROBADA;
+    }
+
+    public void anular() {
+        // Si ya había sido aprobada o estaba lista, se reponen los repuestos de vuelta al almacén
+        if (this.estado == EstadoOrden.APROBADA || this.estado == EstadoOrden.LISTA_PARA_ENTREGA) {
+            reponerStockRepuestos();
+        }
+        this.estado = EstadoOrden.ANULADA;
+    }
+
+    public boolean estaActiva() {
+        return this.estado != EstadoOrden.FACTURADA && this.estado != EstadoOrden.ANULADA;
+    }
+    
+    public void setFechaIngreso(java.util.Date fecha) { 
+        this.fechaIngreso = fecha; 
+    }
+
+    public void cargarItemHistorico(ItemCatalogo item, int cant, double precioHistorico) {
+        if (cantidadItems < items.length) {
+            ItemCotizacion ic = new ItemCotizacion(item, cant);
+            ic.setPrecioUnitario(precioHistorico); // Mantiene el precio antiguo intacto
+            items[cantidadItems++] = ic;
+        }
+    }
+}
+.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Repuesto.java ===== 
+package modelo;
+
+public class Repuesto extends ItemCatalogo {
+
+    private int stock;
+
+    public Repuesto(String codigo, String nombre, double precio, int stock) {
+        super(codigo, nombre, precio);
+        setStock(stock);
+    }
+
+    public int getStock() { return stock; }
+
+    public void setStock(int stock) {
+        if (stock < 0) {
+            throw new IllegalArgumentException("El stock no puede ser negativo.");
+        }
+        this.stock = stock;
+    }
+
+    public boolean hayStock(int cantidad) {
+        return cantidad > 0 && stock >= cantidad;
+    }
+
+    public void descontarStock(int cantidad) {
+        if (cantidad <= 0) {
+            throw new IllegalArgumentException("La cantidad debe ser mayor que cero.");
+        }
+        if (cantidad > stock) {
+            throw new IllegalArgumentException("Stock insuficiente de " + getNombre() + ".");
+        }
+        stock -= cantidad;
+    }
+
+    public void reponerStock(int cantidad) {
+        if (cantidad <= 0) {
+            throw new IllegalArgumentException("La cantidad debe ser mayor que cero.");
+        }
+        stock += cantidad;
+    }
+
+    @Override
+    public String getTipo() {
+        return "REPUESTO";
+    }
+
+    @Override
+    public String toLinea() {
+        return getTipo() + ";" + lineaBase() + ";" + stock;
+    }
+
+    public static Repuesto desdeLinea(String linea) {
+        String[] p = linea.split(";");
+        // Nuevo formato: TIPO(0); CODIGO(1); NOMBRE(2); PRECIO(3); ACTIVO(4); STOCK(5)
+        if (p.length != 6 || !p[0].equals("REPUESTO")) {
+            throw new IllegalArgumentException("Línea de repuesto inválida: " + linea);
+        }
+        Repuesto r = new Repuesto(p[1], p[2], Double.parseDouble(p[3]), Integer.parseInt(p[5]));
+        r.setActivo(Boolean.parseBoolean(p[4]));
+        return r;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " | Stock: " + stock;
+    }
+}.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Servicio.java ===== 
+package modelo;
+
+public class Servicio extends ItemCatalogo {
+
+    public Servicio(String codigo, String nombre, double precio) {
+        super(codigo, nombre, precio);
+    }
+
+    @Override
+    public String getTipo() {
+        return "SERVICIO";
+    }
+
+    @Override
+    public String toLinea() {
+        return getTipo() + ";" + lineaBase();
+    }
+
+    public static Servicio desdeLinea(String linea) {
+        String[] p = linea.split(";");
+        // Nuevo formato: TIPO(0); CODIGO(1); NOMBRE(2); PRECIO(3); ACTIVO(4)
+        if (p.length != 5 || !p[0].equals("SERVICIO")) {
+            throw new IllegalArgumentException("Línea de servicio inválida: " + linea);
+        }
+        Servicio s = new Servicio(p[1], p[2], Double.parseDouble(p[3]));
+        s.setActivo(Boolean.parseBoolean(p[4]));
+        return s;
+    }
+}.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\modelo\Vehiculo.java ===== 
+package modelo;
+
+public class Vehiculo {
+    private String placa;
+    private int anio;
+    private String color;
+    private int kilometraje;
+    private Cliente propietario;
+    private boolean activo; // Agregado para la baja lógica
+
+    public Vehiculo(String placa, int anio, String color, int kilometraje, Cliente propietario) {
+        this.placa = placa;
+        this.anio = anio;
+        this.color = color;
+        this.kilometraje = kilometraje;
+        this.propietario = propietario;
+        this.activo = true; // Por defecto nace activo
+    }
+
+    public void actualizarKilometraje(int km) {
+        if (km > this.kilometraje) {
+            this.kilometraje = km;
+        }
+    }
+
+    // Getters
+    public String getPlaca() { return placa; }
+    public int getAnio() { return anio; }
+    public String getColor() { return color; }
+    public int getKilometraje() { return kilometraje; }
+    public Cliente getPropietario() { return propietario; }
+    public boolean isActivo() { return activo; }
+
+    // Setters
+    public void setPlaca(String placa) { this.placa = placa; }
+    public void setAnio(int anio) { this.anio = anio; }
+    public void setColor(String color) { this.color = color; }
+    public void setKilometraje(int kilometraje) { this.kilometraje = kilometraje; }
+    public void setPropietario(Cliente propietario) { this.propietario = propietario; }
+    public void setActivo(boolean activo) { this.activo = activo; }
+}.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\persistencia\GestorArchivos.java ===== 
+package persistencia;
+
+import gestores.Catalogo;
+import gestores.GestorClientes;
+import gestores.GestorOrdenes;
+import gestores.GestorVehiculos;
+import gestores.HistorialFacturas;
+import modelo.Cliente;
+import modelo.EstadoOrden;
+import modelo.Factura;
+import modelo.ItemCatalogo;
+import modelo.ItemCotizacion;
+import modelo.OrdenTrabajo;
+import modelo.Vehiculo;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+
+public class GestorArchivos {
+
+    private static final String RUTA_CLIENTES = "datos/clientes.txt";
+    private static final String RUTA_CATALOGO = "datos/catalogo.txt";
+    private static final String RUTA_VEHICULOS = "datos/vehiculos.txt";
+    private static final String RUTA_ORDENES = "datos/ordenes.txt";
+    private static final String RUTA_FACTURAS = "datos/facturas.txt";
+
+    // --------------------------------------------------------
+    // MÓDULO CLIENTES
+    // --------------------------------------------------------
+    public static void guardarClientes(GestorClientes gestor) {
+        Cliente[] clientes = gestor.listarTodos(); 
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(RUTA_CLIENTES))) {
+            for (Cliente c : clientes) {
+                if (c != null) {
+                    String linea = c.getDni() + ";" + c.getNombres() + ";" + c.getTelefono() + ";" + c.getCorreo() + ";" + c.isActivo();
+                    bw.write(linea);
+                    bw.newLine();
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error al guardar clientes: " + e.getMessage());
+        }
+    }
+
+    public static void cargarClientes(GestorClientes gestor) {
+        File archivo = new File(RUTA_CLIENTES);
+        if (!archivo.exists()) return;
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] p = linea.split(";");
+                if (p.length == 5) {
+                    Cliente c = new Cliente(p[0], p[1], p[2], p[3]);
+                    c.setActivo(Boolean.parseBoolean(p[4]));
+                    gestor.crear(c); 
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error al cargar clientes: " + e.getMessage());
+        }
+    }
+
+    // --------------------------------------------------------
+    // MÓDULO CATÁLOGO
+    // --------------------------------------------------------
+    public static void guardarCatalogo(Catalogo gestor) {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(RUTA_CATALOGO))) {
+            String[] lineas = gestor.toLineas();
+            for (String linea : lineas) {
+                if (linea != null) {
+                    bw.write(linea);
+                    bw.newLine();
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error al guardar catálogo: " + e.getMessage());
+        }
+    }
+
+    public static void cargarCatalogo(Catalogo gestor) {
+        File archivo = new File(RUTA_CATALOGO);
+        if (!archivo.exists()) return;
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                gestor.cargarDesdeLinea(linea);
+            }
+        } catch (IOException e) {
+            System.err.println("Error al cargar catálogo: " + e.getMessage());
+        }
+    }
+
+    // --------------------------------------------------------
+    // MÓDULO VEHÍCULOS
+    // --------------------------------------------------------
+    public static void guardarVehiculos(GestorVehiculos gestor) {
+        Vehiculo[] vehiculos = gestor.listarTodos();
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(RUTA_VEHICULOS))) {
+            for (Vehiculo v : vehiculos) {
+                if (v != null) {
+                    String linea = v.getPlaca() + ";" + v.getAnio() + ";" + v.getColor() + ";" + v.getKilometraje() + ";" + v.getPropietario().getDni() + ";" + v.isActivo();
+                    bw.write(linea);
+                    bw.newLine();
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error al guardar vehículos: " + e.getMessage());
+        }
+    }
+
+    public static void cargarVehiculos(GestorVehiculos gestorVehiculos, GestorClientes gestorClientes) {
+        File archivo = new File(RUTA_VEHICULOS);
+        if (!archivo.exists()) return;
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] p = linea.split(";");
+                if (p.length == 6) {
+                    Cliente propietario = gestorClientes.leerCualquiera(p[4]); 
+                    if (propietario != null) {
+                        Vehiculo v = new Vehiculo(p[0], Integer.parseInt(p[1]), p[2], Integer.parseInt(p[3]), propietario);
+                        v.setActivo(Boolean.parseBoolean(p[5]));
+                        gestorVehiculos.crear(v);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error al cargar vehículos: " + e.getMessage());
+        }
+    }
+
+    // --------------------------------------------------------
+    // MÓDULO ÓRDENES DE TRABAJO
+    // --------------------------------------------------------
+    public static void guardarOrdenes(GestorOrdenes gestor) {
+        OrdenTrabajo[] ordenes = gestor.listarTodos(); 
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(RUTA_ORDENES))) {
+            for (OrdenTrabajo o : ordenes) {
+                if (o != null) {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append(o.getCodigo()).append(";")
+                      .append(o.getFechaIngreso().getTime()).append(";")
+                      .append(o.getMotivoIngreso()).append(";")
+                      .append(o.getEstado().name()).append(";")
+                      .append(o.getCliente().getDni()).append(";")
+                      .append(o.getVehiculo().getPlaca()).append(";");
+                    
+                    ItemCotizacion[] items = o.getItems();
+                    StringBuilder sbItems = new StringBuilder();
+                    for (int i = 0; i < o.getCantidadItems(); i++) {
+                        sbItems.append(items[i].getReferencia().getCodigo()).append(",")
+                               .append(items[i].getCantidad()).append(",")
+                               .append(items[i].getPrecioUnitario());
+                        if (i < o.getCantidadItems() - 1) sbItems.append("|");
+                    }
+                    sb.append(sbItems.toString());
+                    bw.write(sb.toString());
+                    bw.newLine();
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error al guardar órdenes: " + e.getMessage());
+        }
+    }
+
+    public static void cargarOrdenes(GestorOrdenes gestor, GestorClientes gClientes, GestorVehiculos gVehiculos, Catalogo catalogo) {
+        File archivo = new File(RUTA_ORDENES);
+        if (!archivo.exists()) return;
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] p = linea.split(";", -1); 
+                if (p.length >= 7) {
+                    Cliente c = gClientes.leerCualquiera(p[4]);
+                    Vehiculo v = gVehiculos.leerCualquiera(p[5]);
+                    
+                    if (c != null && v != null) {
+                        OrdenTrabajo o = new OrdenTrabajo(p[0], p[2], c, v);
+                        o.setFechaIngreso(new java.util.Date(Long.parseLong(p[1])));
+                        o.cambiarEstado(EstadoOrden.valueOf(p[3]));
+                        
+                        if (!p[6].isEmpty()) {
+                            String[] arrayItems = p[6].split("\\|");
+                            for (String it : arrayItems) {
+                                String[] datosItem = it.split(",");
+                                ItemCatalogo ref = catalogo.leerCualquiera(datosItem[0]);
+                                if (ref != null) {
+                                    o.cargarItemHistorico(ref, Integer.parseInt(datosItem[1]), Double.parseDouble(datosItem[2]));
+                                }
+                            }
+                        }
+                        gestor.agregarDesdeArchivo(o);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error al cargar órdenes: " + e.getMessage());
+        }
+    }
+
+    // --------------------------------------------------------
+    // MÓDULO FACTURAS
+    // --------------------------------------------------------
+    public static void guardarFacturas(HistorialFacturas gestor) {
+        Factura[] facturas = gestor.listarTodos();
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(RUTA_FACTURAS))) {
+            for (Factura f : facturas) {
+                if (f != null) {
+                    String linea = f.getNumero() + ";" + f.getFechaEmision().getTime() + ";" + f.getSubtotal() + ";" + f.getIgv() + ";" + f.getTotal() + ";" + f.getOrden().getCodigo();
+                    bw.write(linea);
+                    bw.newLine();
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error al guardar facturas: " + e.getMessage());
+        }
+    }
+
+    public static void cargarFacturas(HistorialFacturas gestor, GestorOrdenes gOrdenes) {
+        File archivo = new File(RUTA_FACTURAS);
+        if (!archivo.exists()) return;
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] p = linea.split(";");
+                if (p.length == 6) {
+                    OrdenTrabajo orden = gOrdenes.leerCualquiera(p[5]);
+                    if (orden != null) {
+                        Factura f = new Factura(p[0], new java.util.Date(Long.parseLong(p[1])), Double.parseDouble(p[2]), Double.parseDouble(p[3]), Double.parseDouble(p[4]), orden);
+                        gestor.agregarDesdeArchivo(f);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error al cargar facturas: " + e.getMessage());
+        }
+    }
+}.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\principal\Main.java ===== 
+package principal;
+
+import gestores.Catalogo;
+import gestores.GestorClientes;
+import gestores.GestorOrdenes;
+import gestores.GestorVehiculos;
+import gestores.HistorialFacturas;
+import persistencia.GestorArchivos;
+import vista.VentanaPrincipal;
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Iniciando Sistema de Gestion de Taller Mecanico...");
+
+        // 1. Instanciar los gestores (definiendo la capacidad máxima de los arreglos)
+        GestorClientes gestorClientes = new GestorClientes(100);
+        Catalogo catalogo = new Catalogo(); // Su capacidad ya está definida internamente
+        GestorVehiculos gestorVehiculos = new GestorVehiculos(100);
+        GestorOrdenes gestorOrdenes = new GestorOrdenes(100);
+        HistorialFacturas historialFacturas = new HistorialFacturas(100);
+
+        // 2. Cargar los datos desde los archivos .txt (El orden de carga es CRÍTICO)
+        System.out.println("Cargando base de datos...");
+        GestorArchivos.cargarClientes(gestorClientes);
+        GestorArchivos.cargarCatalogo(catalogo);
+        GestorArchivos.cargarVehiculos(gestorVehiculos, gestorClientes);
+        GestorArchivos.cargarOrdenes(gestorOrdenes, gestorClientes, gestorVehiculos, catalogo);
+        GestorArchivos.cargarFacturas(historialFacturas, gestorOrdenes);
+        System.out.println("Carga completada exitosamente.");
+
+        // 3. Configurar el autoguardado al cerrar la aplicación (Shutdown Hook)
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Guardando datos en los archivos .txt antes de salir...");
+            GestorArchivos.guardarClientes(gestorClientes);
+            GestorArchivos.guardarCatalogo(catalogo);
+            GestorArchivos.guardarVehiculos(gestorVehiculos);
+            GestorArchivos.guardarOrdenes(gestorOrdenes);
+            GestorArchivos.guardarFacturas(historialFacturas);
+            System.out.println("Datos persistidos correctamente.");
+        }));
+
+        // 4. Lanzar la Interfaz Gráfica
+        java.awt.EventQueue.invokeLater(() -> {
+            VentanaPrincipal ventana = new VentanaPrincipal();
+            
+            // Inyectar las instancias únicas de los gestores a la ventana
+            ventana.setGestores(gestorClientes, gestorVehiculos, catalogo, gestorOrdenes, historialFacturas);
+            
+            ventana.setLocationRelativeTo(null); // Centra la ventana en la pantalla
+            ventana.setVisible(true);
+        });
+    }
+}
+.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\vista\package-info.java ===== 
+package vista;
+.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\vista\PanelCatalogo.java ===== 
+package vista;
+
+import gestores.Catalogo;
+import gestores.GestorOrdenes;
+import gestores.HistorialFacturas;
+import modelo.*;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.text.SimpleDateFormat;
+
+public class PanelCatalogo extends JPanel {
+
+    private final Catalogo catalogo;
+    private final GestorOrdenes gestorOrdenes;
+    private final HistorialFacturas historialFacturas;
+
+    // Componentes de Catálogo
+    private JTextField txtCodigo;
+    private JTextField txtNombre;
+    private JTextField txtPrecio;
+    private JTextField txtStock;
+    private JComboBox<String> cmbTipo;
+    private JTextField txtBuscarNombre;
+    private JTable tablaCatalogo;
+    private DefaultTableModel modeloTablaCatalogo;
+
+    // Componentes de Historial
+    private JTable tablaHistorial;
+    private DefaultTableModel modeloTablaHistorial;
+    private SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+
+    public PanelCatalogo(Catalogo catalogo, GestorOrdenes gestorOrdenes, HistorialFacturas historialFacturas) {
+        this.catalogo = catalogo;
+        this.gestorOrdenes = gestorOrdenes;
+        this.historialFacturas = historialFacturas;
+
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        JTabbedPane subTabs = new JTabbedPane();
+        subTabs.addTab("📦 Catálogo de Ítems (Servicios / Repuestos)", crearPanelCatalogo());
+        subTabs.addTab("📜 Historial", crearPanelHistorial());
+
+        add(subTabs, BorderLayout.CENTER);
+
+        cargarTablaCatalogo();
+        cargarTablaHistorial();
+    }
+
+    private JPanel crearPanelCatalogo() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+
+        // Cabecera con búsqueda
+        JPanel panelCabecera = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        txtBuscarNombre = new JTextField(15);
+        JButton btnBuscar = new JButton("Buscar");
+        JButton btnTodos = new JButton("Ver Todos");
+
+        panelCabecera.add(new JLabel("Buscar por nombre:"));
+        panelCabecera.add(txtBuscarNombre);
+        panelCabecera.add(btnBuscar);
+        panelCabecera.add(btnTodos);
+        panel.add(panelCabecera, BorderLayout.NORTH);
+
+        // Centro: Formulario a la izquierda y Tabla al centro
+        JPanel panelFormulario = new JPanel(new GridBagLayout());
+        panelFormulario.setBorder(BorderFactory.createTitledBorder("Nuevo Ítem"));
+        panelFormulario.setPreferredSize(new Dimension(320, 0));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(6, 6, 6, 6);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        txtCodigo = new JTextField(12);
+        txtNombre = new JTextField(12);
+        txtPrecio = new JTextField(12);
+        txtStock = new JTextField(12);
+        cmbTipo = new JComboBox<>(new String[]{"SERVICIO", "REPUESTO"});
+        txtStock.setEnabled(false); // Por defecto SERVICIO no tiene stock
+
+        cmbTipo.addActionListener(e -> {
+            boolean esRepuesto = "REPUESTO".equals(cmbTipo.getSelectedItem());
+            txtStock.setEnabled(esRepuesto);
+            if (!esRepuesto) txtStock.setText("");
+        });
+
+        agregarCampo(panelFormulario, "Tipo:", cmbTipo, gbc, 0);
+        agregarCampo(panelFormulario, "Código:", txtCodigo, gbc, 1);
+        agregarCampo(panelFormulario, "Nombre:", txtNombre, gbc, 2);
+        agregarCampo(panelFormulario, "Precio (S/.):", txtPrecio, gbc, 3);
+        agregarCampo(panelFormulario, "Stock inicial:", txtStock, gbc, 4);
+
+        JButton btnGuardar = new JButton("Guardar Ítem");
+        JButton btnActualizar = new JButton("Actualizar");
+        JButton btnBaja = new JButton("Dar de Baja");
+        JButton btnLimpiar = new JButton("Limpiar");
+
+        btnGuardar.setBackground(new Color(40, 167, 69));
+        btnGuardar.setForeground(Color.WHITE);
+        btnActualizar.setBackground(new Color(0, 123, 255));
+        btnActualizar.setForeground(Color.WHITE);
+        btnBaja.setBackground(new Color(220, 53, 69));
+        btnBaja.setForeground(Color.WHITE);
+
+        JPanel panelBtns = new JPanel(new GridLayout(2, 2, 6, 6));
+        panelBtns.add(btnGuardar);
+        panelBtns.add(btnActualizar);
+        panelBtns.add(btnBaja);
+        panelBtns.add(btnLimpiar);
+
+        gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2;
+        gbc.insets = new Insets(15, 6, 6, 6);
+        panelFormulario.add(panelBtns, gbc);
+
+        panel.add(panelFormulario, BorderLayout.WEST);
+
+        // Tabla
+        String[] columnas = {"Tipo", "Código", "Descripción", "Precio (S/.)", "Stock", "Estado"};
+        modeloTablaCatalogo = new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+        tablaCatalogo = new JTable(modeloTablaCatalogo);
+        tablaCatalogo.setRowHeight(24);
+        tablaCatalogo.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        panel.add(new JScrollPane(tablaCatalogo), BorderLayout.CENTER);
+
+        // Eventos
+        btnGuardar.addActionListener(e -> guardarItem());
+        btnActualizar.addActionListener(e -> actualizarItem());
+        btnBaja.addActionListener(e -> darBajaItem());
+        btnLimpiar.addActionListener(e -> limpiarFormulario());
+        btnBuscar.addActionListener(e -> buscarItem());
+        btnTodos.addActionListener(e -> {
+            txtBuscarNombre.setText("");
+            cargarTablaCatalogo();
+        });
+
+        tablaCatalogo.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                cargarFormularioDesdeTabla();
+            }
+        });
+
+        return panel;
+    }
+
+    private JPanel crearPanelHistorial() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+
+        JPanel panelAcciones = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        JButton btnEmitirFactura = new JButton("🧾 Emitir Factura para Orden...");
+        JButton btnVerTicket = new JButton("👁️ Ver Ticket de Factura");
+
+        btnEmitirFactura.setBackground(new Color(0, 123, 255));
+        btnEmitirFactura.setForeground(Color.WHITE);
+
+        panelAcciones.add(btnEmitirFactura);
+        panelAcciones.add(btnVerTicket);
+        panel.add(panelAcciones, BorderLayout.NORTH);
+
+        // Columnas actualizadas incluyendo el Estado (FACTURADA / ANULADA)
+        String[] cols = {"N° Orden", "Estado", "N° Factura", "Fecha Cierre", "Cliente", "Vehículo (Placa)", "Total (S/.)"};
+        modeloTablaHistorial = new DefaultTableModel(cols, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+        tablaHistorial = new JTable(modeloTablaHistorial);
+        tablaHistorial.setRowHeight(24);
+        tablaHistorial.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        panel.add(new JScrollPane(tablaHistorial), BorderLayout.CENTER);
+
+        btnEmitirFactura.addActionListener(e -> emitirFacturaDialogo());
+        btnVerTicket.addActionListener(e -> verTicketFactura());
+
+        return panel;
+    }
+
+    private void agregarCampo(JPanel panel, String etiqueta, JComponent campo, GridBagConstraints gbc, int fila) {
+        gbc.gridwidth = 1;
+        gbc.gridx = 0; gbc.gridy = fila;
+        gbc.weightx = 0.35;
+        panel.add(new JLabel(etiqueta), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0.65;
+        panel.add(campo, gbc);
+    }
+
+    private void guardarItem() {
+        String tipo = (String) cmbTipo.getSelectedItem();
+        String codigo = txtCodigo.getText().trim();
+        String nombre = txtNombre.getText().trim();
+        String strPrecio = txtPrecio.getText().trim();
+
+        if (codigo.isEmpty() || nombre.isEmpty() || strPrecio.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Complete todos los campos obligatorios.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        double precio;
+        try {
+            precio = Double.parseDouble(strPrecio);
+            if (precio <= 0) throw new NumberFormatException();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "El precio debe ser un número positivo.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        ItemCatalogo nuevo;
+        if ("REPUESTO".equals(tipo)) {
+            String strStock = txtStock.getText().trim();
+            int stock;
+            try {
+                stock = Integer.parseInt(strStock);
+                if (stock < 0) throw new NumberFormatException();
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "El stock debe ser un entero mayor o igual a 0.", "Validación", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            nuevo = new Repuesto(codigo, nombre, precio, stock);
+        } else {
+            nuevo = new Servicio(codigo, nombre, precio);
+        }
+
+        boolean ok = catalogo.crear(nuevo);
+        if (ok) {
+            JOptionPane.showMessageDialog(this, "Ítem agregado al catálogo con éxito.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            limpiarFormulario();
+            cargarTablaCatalogo();
+        } else {
+            JOptionPane.showMessageDialog(this, "El código ya existe o el catálogo está lleno.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // RF-15: Modificar repuesto o servicio
+    private void actualizarItem() {
+        String codigo = txtCodigo.getText().trim();
+        String nombre = txtNombre.getText().trim();
+        String strPrecio = txtPrecio.getText().trim();
+        String tipo = (String) cmbTipo.getSelectedItem();
+
+        if (codigo.isEmpty() || nombre.isEmpty() || strPrecio.isEmpty()) {
+            JOptionPane.showMessageDialog(this, 
+                    "Seleccione un ítem del catálogo o ingrese sus datos para actualizar.", 
+                    "Validación", 
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // RF-15 Precondición: El ítem existe
+        ItemCatalogo existente = catalogo.leer(codigo);
+        if (existente == null) {
+            JOptionPane.showMessageDialog(this, 
+                    "El ítem con código '" + codigo + "' no existe en el catálogo activo.", 
+                    "Ítem no encontrado", 
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        double nuevoPrecio;
+        try {
+            nuevoPrecio = Double.parseDouble(strPrecio);
+            if (nuevoPrecio < 0) throw new NumberFormatException();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "El precio debe ser un número mayor o igual a 0.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int nuevoStock = -1;
+        if ("REPUESTO".equals(tipo)) {
+            String strStock = txtStock.getText().trim();
+            try {
+                nuevoStock = Integer.parseInt(strStock);
+                if (nuevoStock < 0) throw new NumberFormatException();
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "El stock de repuesto debe ser un número entero mayor o igual a 0.", "Validación", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+        }
+
+        // RF-15 Proceso: Actualizar valores
+        boolean actualizado = catalogo.actualizar(codigo, nombre, nuevoPrecio, nuevoStock);
+        if (actualizado) {
+            // RF-15 Postcondición: Muestra valores actualizados (cotizaciones previas congelan sus precios)
+            JOptionPane.showMessageDialog(this, 
+                    "Ítem '" + codigo + "' actualizado correctamente.\n" +
+                    "(Las cotizaciones ya emitidas conservan sus precios congelados intactos).", 
+                    "Actualización Exitosa", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            cargarTablaCatalogo();
+            limpiarFormulario();
+        } else {
+            JOptionPane.showMessageDialog(this, "No se pudo actualizar el ítem.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void cargarFormularioDesdeTabla() {
+        int fila = tablaCatalogo.getSelectedRow();
+        if (fila >= 0) {
+            String tipo = modeloTablaCatalogo.getValueAt(fila, 0).toString();
+            cmbTipo.setSelectedItem(tipo);
+            txtCodigo.setText(modeloTablaCatalogo.getValueAt(fila, 1).toString());
+            txtNombre.setText(modeloTablaCatalogo.getValueAt(fila, 2).toString());
+            txtPrecio.setText(modeloTablaCatalogo.getValueAt(fila, 3).toString().replace(",", "."));
+
+            Object stockVal = modeloTablaCatalogo.getValueAt(fila, 4);
+            if ("REPUESTO".equals(tipo) && stockVal != null && !stockVal.equals("N/A")) {
+                txtStock.setText(stockVal.toString());
+                txtStock.setEnabled(true);
+            } else {
+                txtStock.setText("");
+                txtStock.setEnabled(false);
+            }
+        }
+    }
+
+    private void limpiarFormulario() {
+        txtCodigo.setText("");
+        txtNombre.setText("");
+        txtPrecio.setText("");
+        txtStock.setText("");
+        tablaCatalogo.clearSelection();
+    }
+
+    private void darBajaItem() {
+        int fila = tablaCatalogo.getSelectedRow();
+        if (fila < 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione un ítem de la tabla para dar de baja.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String codigo = modeloTablaCatalogo.getValueAt(fila, 1).toString();
+        int resp = JOptionPane.showConfirmDialog(this, "¿Dar de baja el ítem " + codigo + "?", "Confirmar", JOptionPane.YES_NO_OPTION);
+        if (resp == JOptionPane.YES_OPTION) {
+            boolean ok = catalogo.darDeBaja(codigo);
+            if (ok) {
+                JOptionPane.showMessageDialog(this, "Ítem dado de baja correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                cargarTablaCatalogo();
+            } else {
+                JOptionPane.showMessageDialog(this, "No se pudo dar de baja.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void buscarItem() {
+        String texto = txtBuscarNombre.getText().trim();
+        if (texto.isEmpty()) {
+            cargarTablaCatalogo();
+            return;
+        }
+        ItemCatalogo[] lista = catalogo.buscarPorNombre(texto);
+        mostrarEnTablaCatalogo(lista);
+    }
+
+    public void cargarTablaCatalogo() {
+        mostrarEnTablaCatalogo(catalogo.listar());
+    }
+
+    private void mostrarEnTablaCatalogo(ItemCatalogo[] lista) {
+        modeloTablaCatalogo.setRowCount(0);
+        for (ItemCatalogo item : lista) {
+            String stockStr = (item instanceof Repuesto) ? String.valueOf(((Repuesto) item).getStock()) : "N/A";
+            modeloTablaCatalogo.addRow(new Object[]{
+                    item.getTipo(),
+                    item.getCodigo(),
+                    item.getNombre(),
+                    String.format("%.2f", item.getPrecio()),
+                    stockStr,
+                    item.isActivo() ? "Activo" : "Inactivo"
+            });
+        }
+    }
+
+    private boolean tieneFacturaEmitida(OrdenTrabajo orden) {
+        for (Factura f : historialFacturas.listarTodos()) {
+            if (f.getOrden() != null && f.getOrden().getCodigo().equalsIgnoreCase(orden.getCodigo())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void emitirFacturaDialogo() {
+        OrdenTrabajo[] todasLasOrdenes = gestorOrdenes.listarTodos();
+        
+        // REGLA DE NEGOCIO: Solo se puede emitir factura si el estado de la orden es FACTURADA y no tiene factura previa
+        int cantFacturables = 0;
+        for (OrdenTrabajo o : todasLasOrdenes) {
+            if (o.getEstado() == EstadoOrden.FACTURADA && !tieneFacturaEmitida(o)) {
+                cantFacturables++;
+            }
+        }
+
+        if (cantFacturables == 0) {
+            JOptionPane.showMessageDialog(this, 
+                    "Regla de Negocio:\n" +
+                    "Solo se puede emitir una factura si el estado de la orden es FACTURADA y está pendiente de comprobante.\n" +
+                    "Cambie el estado de la orden a FACTURADA en la pestaña 'Órdenes de Trabajo' para poder emitir la factura.", 
+                    "Regla de Negocio - Emisión de Factura", 
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        JComboBox<String> comboOrdenes = new JComboBox<>();
+        OrdenTrabajo[] facturables = new OrdenTrabajo[cantFacturables];
+        int k = 0;
+        for (OrdenTrabajo o : todasLasOrdenes) {
+            if (o.getEstado() == EstadoOrden.FACTURADA && !tieneFacturaEmitida(o)) {
+                facturables[k++] = o;
+                comboOrdenes.addItem(o.getCodigo() + " - " + o.getCliente().getNombres() + " (Total: S/. " + String.format("%.2f", o.calcularTotal()) + ") [Estado: FACTURADA]");
+            }
+        }
+
+        int opt = JOptionPane.showConfirmDialog(this, comboOrdenes, "Seleccione la orden FACTURADA a emitir comprobante:", JOptionPane.OK_CANCEL_OPTION);
+        if (opt == JOptionPane.OK_OPTION) {
+            int idx = comboOrdenes.getSelectedIndex();
+            OrdenTrabajo seleccionada = facturables[idx];
+
+            if (seleccionada.getCantidadItems() == 0) {
+                JOptionPane.showMessageDialog(this, "La orden no tiene ningún servicio o repuesto cotizado.", "Aviso", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            int numFacturas = historialFacturas.listarTodos().length + 1;
+            String numeroFactura = "FAC-" + String.format("%04d", numFacturas);
+            Factura f = new Factura(numeroFactura);
+            f.emitir(seleccionada);
+
+            boolean registrada = historialFacturas.crear(f);
+            if (registrada) {
+                JOptionPane.showMessageDialog(this, "Factura " + numeroFactura + " emitida con éxito.", "Facturación", JOptionPane.INFORMATION_MESSAGE);
+                cargarTablaHistorial();
+            } else {
+                JOptionPane.showMessageDialog(this, "No se pudo registrar la factura en el historial.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    public void cargarTablaHistorial() {
+        modeloTablaHistorial.setRowCount(0);
+        OrdenTrabajo[] todasLasOrdenes = gestorOrdenes.listarTodos();
+        Factura[] facturas = historialFacturas.listarTodos();
+
+        for (OrdenTrabajo o : todasLasOrdenes) {
+            // Solo se muestran las órdenes que ya concluyeron su ciclo: FACTURADAS o ANULADAS
+            if (o.getEstado() == EstadoOrden.FACTURADA || o.getEstado() == EstadoOrden.ANULADA) {
+                Factura fAsociada = null;
+                for (Factura f : facturas) {
+                    if (f.getOrden() != null && f.getOrden().getCodigo().equalsIgnoreCase(o.getCodigo())) {
+                        fAsociada = f;
+                        break;
+                    }
+                }
+
+                String numFactura = (fAsociada != null) ? fAsociada.getNumero() : (o.getEstado() == EstadoOrden.FACTURADA ? "Pendiente Comprobante" : "N/A - Cancelada");
+                String fecha = (fAsociada != null && fAsociada.getFechaEmision() != null)
+                        ? sdf.format(fAsociada.getFechaEmision())
+                        : sdf.format(o.getFechaIngreso());
+                String nomCliente = (o.getCliente() != null) ? o.getCliente().getNombres() : "-";
+                String placaVehiculo = (o.getVehiculo() != null) ? o.getVehiculo().getPlaca() : "-";
+
+                modeloTablaHistorial.addRow(new Object[]{
+                        o.getCodigo(),
+                        o.getEstado().toString(),
+                        numFactura,
+                        fecha,
+                        nomCliente,
+                        placaVehiculo,
+                        String.format("%.2f", o.calcularTotal())
+                });
+            }
+        }
+    }
+
+    private void verTicketFactura() {
+        int fila = tablaHistorial.getSelectedRow();
+        if (fila < 0) {
+            JOptionPane.showMessageDialog(this, "Seleccione una orden del historial para ver su comprobante.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String estado = modeloTablaHistorial.getValueAt(fila, 1).toString();
+        if ("ANULADA".equalsIgnoreCase(estado)) {
+            JOptionPane.showMessageDialog(this, 
+                    "Esta orden fue anulada/cancelada, por lo que no cuenta con un comprobante de pago emitido.", 
+                    "Sin Comprobante", 
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String codigoOrden = modeloTablaHistorial.getValueAt(fila, 0).toString();
+        Factura[] lista = historialFacturas.listarTodos();
+        Factura f = null;
+        for (Factura fac : lista) {
+            if (fac.getOrden() != null && fac.getOrden().getCodigo().equalsIgnoreCase(codigoOrden)) {
+                f = fac;
+                break;
+            }
+        }
+
+        if (f == null) {
+            JOptionPane.showMessageDialog(this, 
+                    "Esta orden está en estado FACTURADA pero aún no se ha generado su comprobante formal.\n" +
+                    "Use el botón 'Emitir Factura para Orden...' para generar el número de factura y su comprobante.", 
+                    "Comprobante no generado", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        OrdenTrabajo o = f.getOrden();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("========================================\n");
+        sb.append("      TALLER MECÁNICO - COMPROBANTE     \n");
+        sb.append("========================================\n");
+        sb.append("Factura N°:   ").append(f.getNumero()).append("\n");
+        sb.append("Fecha:        ").append(sdf.format(f.getFechaEmision())).append("\n");
+        sb.append("Cliente:      ").append(o.getCliente().getNombres()).append(" (DNI: ").append(o.getCliente().getDni()).append(")\n");
+        sb.append("Vehículo:     ").append(o.getVehiculo().getPlaca()).append(" - ").append(o.getVehiculo().getColor()).append("\n");
+        sb.append("Orden N°:     ").append(o.getCodigo()).append("\n");
+        sb.append("Motivo:       ").append(o.getMotivoIngreso()).append("\n");
+        sb.append("----------------------------------------\n");
+        sb.append("DETALLE DE SERVICIOS Y REPUESTOS:\n");
+        for (int i = 0; i < o.getCantidadItems(); i++) {
+            ItemCotizacion item = o.getItems()[i];
+            sb.append(String.format(" - %-20s x%-2d S/. %7.2f\n",
+                    item.getReferencia().getNombre(),
+                    item.getCantidad(),
+                    item.calcularSubtotal()));
+        }
+        sb.append("----------------------------------------\n");
+        sb.append(String.format("SUBTOTAL:                 S/. %10.2f\n", f.getSubtotal()));
+        sb.append(String.format("IGV (18%%):                S/. %10.2f\n", f.getIgv()));
+        sb.append(String.format("TOTAL A PAGAR:            S/. %10.2f\n", f.getTotal()));
+        sb.append("========================================\n");
+        sb.append("       ¡Gracias por su preferencia!     \n");
+
+        JTextArea areaTicket = new JTextArea(sb.toString());
+        areaTicket.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        areaTicket.setEditable(false);
+
+        JOptionPane.showMessageDialog(this, new JScrollPane(areaTicket), "Ticket de Venta - " + f.getNumero(), JOptionPane.PLAIN_MESSAGE);
+    }
+}
+.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\vista\PanelClientes.java ===== 
+package vista;
+
+import gestores.GestorClientes;
+import gestores.GestorOrdenes;
+import gestores.GestorVehiculos;
+import modelo.Cliente;
+import modelo.Vehiculo;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+
+public class PanelClientes extends JPanel {
+
+    private final GestorClientes gestorClientes;
+    private final GestorOrdenes gestorOrdenes;
+    private final GestorVehiculos gestorVehiculos;
+
+    private JTextField txtDni;
+    private JTextField txtNombres;
+    private JTextField txtTelefono;
+    private JTextField txtCorreo;
+    private JTextField txtBuscar;
+
+    private JTable tablaClientes;
+    private DefaultTableModel modeloTabla;
+
+    public PanelClientes(GestorClientes gestorClientes, GestorOrdenes gestorOrdenes, GestorVehiculos gestorVehiculos) {
+        this.gestorClientes = gestorClientes;
+        this.gestorOrdenes = gestorOrdenes;
+        this.gestorVehiculos = gestorVehiculos;
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        inicializarComponentes();
+        cargarTabla();
+    }
+
+    private void inicializarComponentes() {
+        // --- PANEL SUPERIOR: TÍTULO Y BÚSQUEDA ---
+        JPanel panelCabecera = new JPanel(new BorderLayout(10, 10));
+        JLabel lblTitulo = new JLabel("Gestión de Clientes");
+        lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        lblTitulo.setForeground(new Color(33, 37, 41));
+        panelCabecera.add(lblTitulo, BorderLayout.WEST);
+
+        JPanel panelBusqueda = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        txtBuscar = new JTextField(15);
+        JButton btnBuscar = new JButton("Buscar");
+        JButton btnRestablecer = new JButton("Ver Todos");
+
+        panelBusqueda.add(new JLabel("DNI o Nombre:"));
+        panelBusqueda.add(txtBuscar);
+        panelBusqueda.add(btnBuscar);
+        panelBusqueda.add(btnRestablecer);
+        panelCabecera.add(panelBusqueda, BorderLayout.EAST);
+
+        add(panelCabecera, BorderLayout.NORTH);
+
+        // --- PANEL CENTRAL: FORMULARIO Y TABLA ---
+        JPanel panelCentral = new JPanel(new BorderLayout(10, 10));
+
+        // Formulario a la izquierda
+        JPanel panelFormulario = new JPanel(new GridBagLayout());
+        panelFormulario.setBorder(BorderFactory.createTitledBorder("Datos del Cliente"));
+        panelFormulario.setPreferredSize(new Dimension(320, 0));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(6, 6, 6, 6);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        txtDni = new JTextField(15);
+        txtNombres = new JTextField(15);
+        txtTelefono = new JTextField(15);
+        txtCorreo = new JTextField(15);
+
+        agregarCampo(panelFormulario, "DNI:", txtDni, gbc, 0);
+        agregarCampo(panelFormulario, "Nombres:", txtNombres, gbc, 1);
+        agregarCampo(panelFormulario, "Teléfono:", txtTelefono, gbc, 2);
+        agregarCampo(panelFormulario, "Correo:", txtCorreo, gbc, 3);
+
+        // Panel de botones del formulario
+        JPanel panelBotones = new JPanel(new GridLayout(2, 2, 6, 6));
+        JButton btnRegistrar = new JButton("Registrar");
+        JButton btnActualizar = new JButton("Actualizar");
+        JButton btnDarBaja = new JButton("Dar de Baja");
+        JButton btnLimpiar = new JButton("Limpiar");
+
+        btnRegistrar.setBackground(new Color(40, 167, 69));
+        btnRegistrar.setForeground(Color.WHITE);
+        btnActualizar.setBackground(new Color(0, 123, 255));
+        btnActualizar.setForeground(Color.WHITE);
+        btnDarBaja.setBackground(new Color(220, 53, 69));
+        btnDarBaja.setForeground(Color.WHITE);
+
+        panelBotones.add(btnRegistrar);
+        panelBotones.add(btnActualizar);
+        panelBotones.add(btnDarBaja);
+        panelBotones.add(btnLimpiar);
+
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(12, 6, 6, 6);
+        panelFormulario.add(panelBotones, gbc);
+
+        // Botón: Consultar vehículos del cliente
+        JButton btnVerVehiculos = new JButton("🚗 Consultar Vehículos");
+        btnVerVehiculos.setBackground(new Color(23, 162, 184));
+        btnVerVehiculos.setForeground(Color.WHITE);
+        btnVerVehiculos.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        gbc.gridy = 5;
+        gbc.insets = new Insets(6, 6, 6, 6);
+        panelFormulario.add(btnVerVehiculos, gbc);
+
+        panelCentral.add(panelFormulario, BorderLayout.WEST);
+
+        // Tabla a la derecha
+        String[] columnas = {"DNI", "Nombres y Apellidos", "Teléfono", "Correo", "Estado"};
+        modeloTabla = new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // Solo lectura en la tabla
+            }
+        };
+
+        tablaClientes = new JTable(modeloTabla);
+        tablaClientes.setRowHeight(24);
+        tablaClientes.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        tablaClientes.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        JScrollPane scrollTabla = new JScrollPane(tablaClientes);
+        scrollTabla.setBorder(BorderFactory.createTitledBorder("Listado de Clientes"));
+        panelCentral.add(scrollTabla, BorderLayout.CENTER);
+
+        add(panelCentral, BorderLayout.CENTER);
+
+        // --- EVENTOS ---
+        btnRegistrar.addActionListener(e -> registrarCliente());
+        btnActualizar.addActionListener(e -> actualizarCliente());
+        btnDarBaja.addActionListener(e -> darDeBajaCliente());
+        btnLimpiar.addActionListener(e -> limpiarFormulario());
+        btnBuscar.addActionListener(e -> buscarCliente());
+        btnVerVehiculos.addActionListener(e -> consultarVehiculosCliente());
+        btnRestablecer.addActionListener(e -> {
+            txtBuscar.setText("");
+            cargarTabla();
+        });
+
+        tablaClientes.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                cargarFormularioDesdeTabla();
+            }
+        });
+    }
+
+    private void agregarCampo(JPanel panel, String etiqueta, JTextField campo, GridBagConstraints gbc, int fila) {
+        gbc.gridwidth = 1;
+        gbc.gridx = 0;
+        gbc.gridy = fila;
+        gbc.weightx = 0.3;
+        panel.add(new JLabel(etiqueta), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0.7;
+        panel.add(campo, gbc);
+    }
+
+    private void registrarCliente() {
+        String dni = txtDni.getText().trim();
+        String nombres = txtNombres.getText().trim();
+        String telefono = txtTelefono.getText().trim();
+        String correo = txtCorreo.getText().trim();
+
+        if (dni.isEmpty() || nombres.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "DNI y Nombres son campos obligatorios.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Cliente nuevo = new Cliente(dni, nombres, telefono, correo);
+        boolean registrado = gestorClientes.crear(nuevo);
+
+        if (registrado) {
+            JOptionPane.showMessageDialog(this, "Cliente registrado exitosamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            cargarTabla();
+            limpiarFormulario();
+        } else {
+            JOptionPane.showMessageDialog(this, "No se pudo registrar: El DNI ya existe o se alcanzó la capacidad máxima.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void actualizarCliente() {
+        String dni = txtDni.getText().trim();
+        String nombres = txtNombres.getText().trim();
+        String telefono = txtTelefono.getText().trim();
+        String correo = txtCorreo.getText().trim();
+
+        if (dni.isEmpty() || nombres.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Seleccione un cliente para actualizar y complete DNI y Nombres.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Cliente clienteActualizado = new Cliente(dni, nombres, telefono, correo);
+        boolean actualizado = gestorClientes.actualizar(clienteActualizado);
+
+        if (actualizado) {
+            JOptionPane.showMessageDialog(this, "Cliente actualizado correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            cargarTabla();
+            limpiarFormulario();
+        } else {
+            JOptionPane.showMessageDialog(this, "No se encontró ningún cliente activo con el DNI indicado.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void darDeBajaCliente() {
+        String dni = txtDni.getText().trim();
+        if (dni.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Ingrese o seleccione el DNI del cliente a dar de baja.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Cliente cliente = gestorClientes.leer(dni);
+        if (cliente == null) {
+            JOptionPane.showMessageDialog(this, "No se encontró ningún cliente activo con el DNI indicado.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // El sistema verifica que el cliente no tenga órdenes activas
+        if (gestorOrdenes != null && gestorOrdenes.tieneOrdenesActivas(cliente)) {
+            JOptionPane.showMessageDialog(this,
+                    "No se puede dar de baja al cliente '" + cliente.getNombres() + 
+                    "' porque tiene órdenes de trabajo activas en el taller.",
+                    "Baja Rechazada",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirmacion = JOptionPane.showConfirmDialog(this,
+                "¿Está seguro de dar de baja al cliente con DNI " + dni + " (" + cliente.getNombres() + ")?",
+                "Confirmar Baja Lógica",
+                JOptionPane.YES_NO_OPTION);
+
+        if (confirmacion == JOptionPane.YES_OPTION) {
+            boolean dadoDeBaja = gestorClientes.darDeBaja(dni);
+            if (dadoDeBaja) {
+                JOptionPane.showMessageDialog(this, "Cliente dado de baja correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                cargarTabla();
+                limpiarFormulario();
+            } else {
+                JOptionPane.showMessageDialog(this, "No se pudo procesar la baja del cliente.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void buscarCliente() {
+        String criterio = txtBuscar.getText().trim();
+        if (criterio.isEmpty()) {
+            cargarTabla();
+            return;
+        }
+
+        Cliente encontrado = gestorClientes.leer(criterio);
+        modeloTabla.setRowCount(0); // Limpiar tabla
+        if (encontrado != null) {
+            modeloTabla.addRow(new Object[]{
+                    encontrado.getDni(),
+                    encontrado.getNombres(),
+                    encontrado.getTelefono(),
+                    encontrado.getCorreo(),
+                    encontrado.isActivo() ? "Activo" : "Inactivo"
+            });
+        } else {
+            JOptionPane.showMessageDialog(this, "No se encontró ningún cliente activo con: " + criterio, "Búsqueda", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+
+    public void cargarTabla() {
+        modeloTabla.setRowCount(0);
+        Cliente[] lista = gestorClientes.listar();
+        for (Cliente c : lista) {
+            modeloTabla.addRow(new Object[]{
+                    c.getDni(),
+                    c.getNombres(),
+                    c.getTelefono(),
+                    c.getCorreo(),
+                    c.isActivo() ? "Activo" : "Inactivo"
+            });
+        }
+    }
+
+    private void cargarFormularioDesdeTabla() {
+        int fila = tablaClientes.getSelectedRow();
+        if (fila >= 0) {
+            txtDni.setText(modeloTabla.getValueAt(fila, 0).toString());
+            txtNombres.setText(modeloTabla.getValueAt(fila, 1).toString());
+            Object tel = modeloTabla.getValueAt(fila, 2);
+            txtTelefono.setText(tel != null ? tel.toString() : "");
+            Object mail = modeloTabla.getValueAt(fila, 3);
+            txtCorreo.setText(mail != null ? mail.toString() : "");
+        }
+    }
+
+    private void limpiarFormulario() {
+        txtDni.setText("");
+        txtNombres.setText("");
+        txtTelefono.setText("");
+        txtCorreo.setText("");
+        tablaClientes.clearSelection();
+    }
+
+    // Consultar vehículos del cliente
+    private void consultarVehiculosCliente() {
+        String dni = txtDni.getText().trim();
+        if (dni.isEmpty()) {
+            JOptionPane.showMessageDialog(this, 
+                    "Seleccione un cliente de la tabla o ingrese su DNI para consultar sus vehículos.", 
+                    "Validación", 
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Precondición: El cliente existe
+        Cliente c = gestorClientes.leer(dni);
+        if (c == null) {
+            JOptionPane.showMessageDialog(this, 
+                    "El cliente con DNI " + dni + " no existe o está inactivo.", 
+                    "Cliente no encontrado", 
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (gestorVehiculos == null) {
+            JOptionPane.showMessageDialog(this, "Gestor de vehículos no disponible.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Proceso: El sistema recupera los vehículos asociados
+        Vehiculo[] vehiculos = gestorVehiculos.listarPorCliente(c);
+
+        if (vehiculos.length == 0) {
+            JOptionPane.showMessageDialog(this, 
+                    "El cliente " + c.getNombres() + " (DNI: " + c.getDni() + ") no tiene vehículos asociados actualmente.", 
+                    "Vehículos del Cliente", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // Salidas / Postcondición: La lista se muestra al usuario
+        String[] columnas = {"Placa", "Año", "Color", "Kilometraje", "Estado"};
+        DefaultTableModel model = new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
+
+        for (Vehiculo v : vehiculos) {
+            model.addRow(new Object[]{
+                    v.getPlaca(),
+                    v.getAnio(),
+                    v.getColor(),
+                    v.getKilometraje() + " km",
+                    v.isActivo() ? "Activo" : "Inactivo"
+            });
+        }
+
+        JTable table = new JTable(model);
+        table.setRowHeight(22);
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setPreferredSize(new Dimension(520, 180));
+
+        JOptionPane.showMessageDialog(this, scroll, 
+                "Vehículos de " + c.getNombres() + " (DNI: " + c.getDni() + ")", 
+                JOptionPane.PLAIN_MESSAGE);
+    }
+}
+
+.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\vista\PanelOrdenes.java ===== 
+package vista;
+
+import gestores.Catalogo;
+import gestores.GestorClientes;
+import gestores.GestorOrdenes;
+import gestores.GestorVehiculos;
+import modelo.*;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.text.SimpleDateFormat;
+
+public class PanelOrdenes extends JPanel {
+
+    private final GestorOrdenes gestorOrdenes;
+    private final GestorClientes gestorClientes;
+    private final GestorVehiculos gestorVehiculos;
+    private final Catalogo catalogo;
+
+    private JTextField txtDniCliente;
+    private JTextField txtPlacaVehiculo;
+    private JTextField txtMotivo;
+    private JTextField txtBuscar;
+
+    private JTable tablaOrdenes;
+    private DefaultTableModel modeloTablaOrdenes;
+
+    private JTable tablaItems;
+    private DefaultTableModel modeloTablaItems;
+
+    private JLabel lblTotalOrden;
+    private SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+
+    public PanelOrdenes(GestorOrdenes gestorOrdenes, GestorClientes gestorClientes, GestorVehiculos gestorVehiculos, Catalogo catalogo) {
+        this.gestorOrdenes = gestorOrdenes;
+        this.gestorClientes = gestorClientes;
+        this.gestorVehiculos = gestorVehiculos;
+        this.catalogo = catalogo;
+
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        inicializarComponentes();
+        cargarTablaOrdenes();
+    }
+
+    private void inicializarComponentes() {
+        // --- CABECERA ---
+        JPanel panelCabecera = new JPanel(new BorderLayout(10, 10));
+        JLabel lblTitulo = new JLabel("Órdenes de Trabajo del Taller");
+        lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        panelCabecera.add(lblTitulo, BorderLayout.WEST);
+
+        JPanel panelBusqueda = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        txtBuscar = new JTextField(12);
+        JButton btnBuscar = new JButton("Buscar Orden");
+        JButton btnTodos = new JButton("Ver Todas");
+
+        panelBusqueda.add(new JLabel("Código / DNI / Placa:"));
+        panelBusqueda.add(txtBuscar);
+        panelBusqueda.add(btnBuscar);
+        panelBusqueda.add(btnTodos);
+        panelCabecera.add(panelBusqueda, BorderLayout.EAST);
+
+        add(panelCabecera, BorderLayout.NORTH);
+
+        // --- PANEL SUPERIOR: FORMULARIO CREACIÓN ---
+        JPanel panelNuevaOrden = new JPanel(new GridBagLayout());
+        panelNuevaOrden.setBorder(BorderFactory.createTitledBorder("Apertura de Nueva Orden de Trabajo"));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 8, 5, 8);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        txtDniCliente = new JTextField(10);
+        txtPlacaVehiculo = new JTextField(10);
+        txtMotivo = new JTextField(25);
+
+        gbc.gridx = 0; gbc.gridy = 0;
+        panelNuevaOrden.add(new JLabel("DNI Cliente:"), gbc);
+        gbc.gridx = 1;
+        panelNuevaOrden.add(txtDniCliente, gbc);
+
+        gbc.gridx = 2;
+        panelNuevaOrden.add(new JLabel("Placa Vehículo:"), gbc);
+        gbc.gridx = 3;
+        panelNuevaOrden.add(txtPlacaVehiculo, gbc);
+
+        gbc.gridx = 4;
+        panelNuevaOrden.add(new JLabel("Motivo / Falla:"), gbc);
+        gbc.gridx = 5;
+        panelNuevaOrden.add(txtMotivo, gbc);
+
+        JButton btnCrearOrden = new JButton("Abrir Orden");
+        btnCrearOrden.setBackground(new Color(40, 167, 69));
+        btnCrearOrden.setForeground(Color.WHITE);
+        gbc.gridx = 6;
+        panelNuevaOrden.add(btnCrearOrden, gbc);
+
+        // --- PANEL CENTRAL: TABLA DE ÓRDENES Y DETALLES ---
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        splitPane.setResizeWeight(0.55);
+
+        // Tabla Órdenes
+        String[] colOrdenes = {"Código", "Fecha Ingreso", "Cliente", "Vehículo (Placa)", "Motivo", "Estado", "Total (S/.)"};
+        modeloTablaOrdenes = new DefaultTableModel(colOrdenes, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+        tablaOrdenes = new JTable(modeloTablaOrdenes);
+        tablaOrdenes.setRowHeight(24);
+        tablaOrdenes.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane scrollOrdenes = new JScrollPane(tablaOrdenes);
+        scrollOrdenes.setBorder(BorderFactory.createTitledBorder("Listado de Órdenes"));
+
+        // Panel Inferior: Items / Cotización y Acciones de la Orden
+        JPanel panelInferior = new JPanel(new BorderLayout(8, 8));
+        String[] colItems = {"Código", "Descripción", "Tipo", "Cantidad", "P. Unitario", "Subtotal"};
+        modeloTablaItems = new DefaultTableModel(colItems, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+        tablaItems = new JTable(modeloTablaItems);
+        tablaItems.setRowHeight(22);
+        JScrollPane scrollItems = new JScrollPane(tablaItems);
+        scrollItems.setBorder(BorderFactory.createTitledBorder("Servicios y Repuestos de la Orden Seleccionada"));
+        panelInferior.add(scrollItems, BorderLayout.CENTER);
+
+        // Barra de acciones para la orden seleccionada
+        JPanel panelAcciones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+        JButton btnAgregarItem = new JButton("➕ Agregar Servicio/Repuesto");
+        JButton btnCambiarEstado = new JButton("⚙️ Cambiar Estado");
+        JButton btnAnular = new JButton("❌ Anular Orden");
+        lblTotalOrden = new JLabel("Total Orden: S/. 0.00   ");
+        lblTotalOrden.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+        btnAgregarItem.setBackground(new Color(23, 162, 184));
+        btnAgregarItem.setForeground(Color.WHITE);
+        btnCambiarEstado.setBackground(new Color(255, 193, 7));
+        btnCambiarEstado.setForeground(Color.BLACK);
+        btnAnular.setBackground(new Color(220, 53, 69));
+        btnAnular.setForeground(Color.WHITE);
+
+        panelAcciones.add(lblTotalOrden);
+        panelAcciones.add(btnAgregarItem);
+        panelAcciones.add(btnCambiarEstado);
+        panelAcciones.add(btnAnular);
+        panelInferior.add(panelAcciones, BorderLayout.SOUTH);
+
+        splitPane.setTopComponent(scrollOrdenes);
+        splitPane.setBottomComponent(panelInferior);
+
+        JPanel panelCuerpo = new JPanel(new BorderLayout(8, 8));
+        panelCuerpo.add(panelNuevaOrden, BorderLayout.NORTH);
+        panelCuerpo.add(splitPane, BorderLayout.CENTER);
+
+        add(panelCuerpo, BorderLayout.CENTER);
+
+        // --- EVENTOS ---
+        btnCrearOrden.addActionListener(e -> crearOrden());
+        btnBuscar.addActionListener(e -> buscarOrdenes());
+        btnTodos.addActionListener(e -> {
+            txtBuscar.setText("");
+            cargarTablaOrdenes();
+        });
+        btnAgregarItem.addActionListener(e -> agregarItemAOrden());
+        btnCambiarEstado.addActionListener(e -> cambiarEstadoOrden());
+        btnAnular.addActionListener(e -> anularOrden());
+
+        tablaOrdenes.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                cargarItemsDeOrdenSeleccionada();
+            }
+        });
+    }
+
+    private void crearOrden() {
+        String dni = txtDniCliente.getText().trim();
+        String placa = txtPlacaVehiculo.getText().trim();
+        String motivo = txtMotivo.getText().trim();
+
+        if (dni.isEmpty() || placa.isEmpty() || motivo.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Debe ingresar DNI, Placa y Motivo.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Cliente c = gestorClientes.leer(dni);
+        if (c == null) {
+            JOptionPane.showMessageDialog(this, "Cliente con DNI " + dni + " no existe o está inactivo.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        Vehiculo v = gestorVehiculos.leer(placa);
+        if (v == null) {
+            JOptionPane.showMessageDialog(this, "Vehículo con placa " + placa + " no existe o está inactivo.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (gestorOrdenes.tieneOrdenActiva(v)) {
+            JOptionPane.showMessageDialog(this, "El vehículo " + placa + " ya tiene una orden activa pendiente en el taller.", "Vehículo en Taller", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        OrdenTrabajo nueva = gestorOrdenes.crear(c, v, motivo);
+        if (nueva != null) {
+            JOptionPane.showMessageDialog(this, "Orden creada con éxito: " + nueva.getCodigo(), "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            txtDniCliente.setText("");
+            txtPlacaVehiculo.setText("");
+            txtMotivo.setText("");
+            cargarTablaOrdenes();
+        } else {
+            JOptionPane.showMessageDialog(this, "No se pudo crear la orden: límite de capacidad alcanzado.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void buscarOrdenes() {
+        String criterio = txtBuscar.getText().trim();
+        if (criterio.isEmpty()) {
+            cargarTablaOrdenes();
+            return;
+        }
+
+        OrdenTrabajo[] resultado = gestorOrdenes.leer(criterio);
+        mostrarEnTabla(resultado);
+    }
+
+    public void cargarTablaOrdenes() {
+        OrdenTrabajo[] lista = gestorOrdenes.listar();
+        mostrarEnTabla(lista);
+    }
+
+    private boolean esEstadoActivo(EstadoOrden estado) {
+        return estado == EstadoOrden.EN_ESPERA ||
+               estado == EstadoOrden.EN_DIAGNOSTICO ||
+               estado == EstadoOrden.COTIZADA ||
+               estado == EstadoOrden.APROBADA ||
+               estado == EstadoOrden.LISTA_PARA_ENTREGA;
+    }
+
+    private void mostrarEnTabla(OrdenTrabajo[] lista) {
+        modeloTablaOrdenes.setRowCount(0);
+        for (OrdenTrabajo o : lista) {
+            // Solo se muestran órdenes activas en taller; las FACTURADAS o ANULADAS van al Historial
+            if (esEstadoActivo(o.getEstado())) {
+                modeloTablaOrdenes.addRow(new Object[]{
+                        o.getCodigo(),
+                        sdf.format(o.getFechaIngreso()),
+                        o.getCliente().getNombres(),
+                        o.getVehiculo().getPlaca(),
+                        o.getMotivoIngreso(),
+                        o.getEstado(),
+                        String.format("%.2f", o.calcularTotal())
+                });
+            }
+        }
+        modeloTablaItems.setRowCount(0);
+        lblTotalOrden.setText("Total Orden: S/. 0.00   ");
+    }
+
+    private OrdenTrabajo obtenerOrdenSeleccionada() {
+        int fila = tablaOrdenes.getSelectedRow();
+        if (fila < 0) return null;
+        String codigo = modeloTablaOrdenes.getValueAt(fila, 0).toString();
+        OrdenTrabajo[] busqueda = gestorOrdenes.leer(codigo);
+        if (busqueda.length > 0) return busqueda[0];
+        return null;
+    }
+
+    private void cargarItemsDeOrdenSeleccionada() {
+        OrdenTrabajo orden = obtenerOrdenSeleccionada();
+        modeloTablaItems.setRowCount(0);
+        if (orden == null) {
+            lblTotalOrden.setText("Total Orden: S/. 0.00   ");
+            return;
+        }
+
+        ItemCotizacion[] items = orden.getItems();
+        for (int i = 0; i < orden.getCantidadItems(); i++) {
+            ItemCotizacion ic = items[i];
+            String tipo = (ic.getReferencia() instanceof Servicio) ? "Servicio" : "Repuesto";
+            modeloTablaItems.addRow(new Object[]{
+                    ic.getReferencia().getCodigo(),
+                    ic.getReferencia().getNombre(),
+                    tipo,
+                    ic.getCantidad(),
+                    String.format("%.2f", ic.getPrecioUnitario()),
+                    String.format("%.2f", ic.calcularSubtotal())
+            });
+        }
+
+        lblTotalOrden.setText(String.format("Subtotal: S/. %.2f | IGV (18%%): S/. %.2f | Total: S/. %.2f   ",
+                orden.calcularSubtotal(), orden.calcularIGV(), orden.calcularTotal()));
+    }
+
+    private void agregarItemAOrden() {
+        OrdenTrabajo orden = obtenerOrdenSeleccionada();
+        if (orden == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione primero una orden de la lista.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (!orden.estaActiva()) {
+            JOptionPane.showMessageDialog(this, "No se pueden agregar ítems a una orden finalizada o anulada.", "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Precondición: La orden debe estar en estado EN_DIAGNOSTICO (o COTIZADA para seguir añadiendo ítems)
+        if (orden.getEstado() != EstadoOrden.EN_DIAGNOSTICO && orden.getEstado() != EstadoOrden.COTIZADA) {
+            JOptionPane.showMessageDialog(this,
+                    "Para cotizar servicios o repuestos, la orden debe estar en estado 'EN_DIAGNOSTICO'.\n" +
+                    "Estado actual de la orden " + orden.getCodigo() + ": " + orden.getEstado() + ".\n" +
+                    "Cambie primero el estado a 'EN_DIAGNOSTICO' con el botón '⚙️ Cambiar Estado'.",
+                    "Estado no válido para cotizar",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        ItemCatalogo[] disponibles = catalogo.listar();
+        if (disponibles.length == 0) {
+            JOptionPane.showMessageDialog(this, "El catálogo está vacío. Agregue servicios o repuestos en la pestaña Catálogo.", "Catálogo Vacío", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Crear diálogo para elegir ítem y cantidad
+        JComboBox<String> comboItems = new JComboBox<>();
+        for (ItemCatalogo item : disponibles) {
+            comboItems.addItem(item.getCodigo() + " - " + item.getNombre() + " (S/. " + item.getPrecio() + ")");
+        }
+
+        JSpinner spinnerCantidad = new JSpinner(new SpinnerNumberModel(1, 1, 100, 1));
+
+        JPanel panelDialogo = new JPanel(new GridLayout(2, 2, 5, 5));
+        panelDialogo.add(new JLabel("Seleccionar Ítem:"));
+        panelDialogo.add(comboItems);
+        panelDialogo.add(new JLabel("Cantidad:"));
+        panelDialogo.add(spinnerCantidad);
+
+        int opcion = JOptionPane.showConfirmDialog(this, panelDialogo, "Elaborar Cotización - Orden " + orden.getCodigo(), JOptionPane.OK_CANCEL_OPTION);
+        if (opcion == JOptionPane.OK_OPTION) {
+            int indice = comboItems.getSelectedIndex();
+            ItemCatalogo seleccionado = disponibles[indice];
+            int cant = (Integer) spinnerCantidad.getValue();
+
+            // Validar existencia de stock al cotizar si es un repuesto
+            if (seleccionado instanceof Repuesto) {
+                Repuesto rep = (Repuesto) seleccionado;
+                if (!rep.hayStock(cant)) {
+                    JOptionPane.showMessageDialog(this,
+                            "Stock insuficiente en almacén para cotizar este repuesto.\n" +
+                            "Repuesto: " + rep.getNombre() + "\n" +
+                            "Stock disponible: " + rep.getStock() + " unidades\n" +
+                            "Cantidad requerida: " + cant + " unidades",
+                            "Stock Insuficiente",
+                            JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+            }
+
+            orden.agregarItem(seleccionado, cant);
+
+            // RF-17 Postcondición: La orden queda cotizada y pendiente de aprobación
+            orden.cambiarEstado(EstadoOrden.COTIZADA);
+
+            JOptionPane.showMessageDialog(this, 
+                    "Ítem agregado con éxito a la cotización.\n" +
+                    "La orden " + orden.getCodigo() + " ahora se encuentra en estado 'COTIZADA' (pendiente de aprobación).", 
+                    "Cotización Elaborada", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            cargarItemsDeOrdenSeleccionada();
+            cargarTablaOrdenes();
+        }
+    }
+
+    private void cambiarEstadoOrden() {
+        OrdenTrabajo orden = obtenerOrdenSeleccionada();
+        if (orden == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione una orden de la lista.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        JComboBox<EstadoOrden> comboEstados = new JComboBox<>(EstadoOrden.values());
+        comboEstados.setSelectedItem(orden.getEstado());
+
+        int res = JOptionPane.showConfirmDialog(this, comboEstados, "Cambiar estado de orden " + orden.getCodigo(), JOptionPane.OK_CANCEL_OPTION);
+        if (res == JOptionPane.OK_OPTION) {
+            EstadoOrden nuevoEstado = (EstadoOrden) comboEstados.getSelectedItem();
+
+            // Momento A: Al APROBAR la orden se descuenta el stock de repuestos
+            if (nuevoEstado == EstadoOrden.APROBADA && orden.getEstado() != EstadoOrden.APROBADA) {
+                if (!orden.tieneStockDisponibleParaAprobar()) {
+                    JOptionPane.showMessageDialog(this,
+                            "No se puede aprobar la orden porque uno o más repuestos cotizados ya no cuentan con stock suficiente en el almacén.",
+                            "Stock Insuficiente al Aprobar",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                orden.aprobar();
+                JOptionPane.showMessageDialog(this,
+                        "Orden " + orden.getCodigo() + " APROBADA exitosamente.\n" +
+                        "Se han retirado y descontado del stock del almacén los repuestos cotizados.",
+                        "Orden Aprobada - Stock Actualizado",
+                        JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                orden.cambiarEstado(nuevoEstado);
+            }
+
+            cargarTablaOrdenes();
+            cargarItemsDeOrdenSeleccionada();
+        }
+    }
+
+    private void anularOrden() {
+        OrdenTrabajo orden = obtenerOrdenSeleccionada();
+        if (orden == null) {
+            JOptionPane.showMessageDialog(this, "Seleccione la orden a anular.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int resp = JOptionPane.showConfirmDialog(this, "¿Está seguro de anular la orden " + orden.getCodigo() + "?", "Confirmar Anulación", JOptionPane.YES_NO_OPTION);
+        if (resp == JOptionPane.YES_OPTION) {
+            boolean estabaAprobada = (orden.getEstado() == EstadoOrden.APROBADA || orden.getEstado() == EstadoOrden.LISTA_PARA_ENTREGA);
+            boolean anulada = gestorOrdenes.anular(orden.getCodigo());
+            if (anulada) {
+                String msj = "Orden " + orden.getCodigo() + " anulada.";
+                if (estabaAprobada) {
+                    msj += "\nLos repuestos asignados fueron devueltos automáticamente al stock del almacén.";
+                }
+                JOptionPane.showMessageDialog(this, msj, "Aviso de Anulación", JOptionPane.INFORMATION_MESSAGE);
+                cargarTablaOrdenes();
+                cargarItemsDeOrdenSeleccionada();
+            } else {
+                JOptionPane.showMessageDialog(this, "No se pudo anular la orden (quizás ya está cerrada o facturada).", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+}
+.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\vista\PanelVehiculos.java ===== 
+package vista;
+
+import gestores.GestorClientes;
+import gestores.GestorOrdenes;
+import gestores.GestorVehiculos;
+import modelo.Cliente;
+import modelo.Vehiculo;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+
+public class PanelVehiculos extends JPanel {
+
+    private final GestorVehiculos gestorVehiculos;
+    private final GestorClientes gestorClientes;
+    private final GestorOrdenes gestorOrdenes;
+
+    private JTextField txtPlaca;
+    private JTextField txtAnio;
+    private JTextField txtColor;
+    private JTextField txtKilometraje;
+    private JTextField txtDniPropietario;
+    private JTextField txtBuscarPlaca;
+
+    private JTable tablaVehiculos;
+    private DefaultTableModel modeloTabla;
+
+    public PanelVehiculos(GestorVehiculos gestorVehiculos, GestorClientes gestorClientes, GestorOrdenes gestorOrdenes) {
+        this.gestorVehiculos = gestorVehiculos;
+        this.gestorClientes = gestorClientes;
+        this.gestorOrdenes = gestorOrdenes;
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        inicializarComponentes();
+        cargarTabla();
+    }
+
+    private void inicializarComponentes() {
+        // --- PANEL SUPERIOR: TÍTULO Y BÚSQUEDA ---
+        JPanel panelCabecera = new JPanel(new BorderLayout(10, 10));
+        JLabel lblTitulo = new JLabel("Gestión de Vehículos");
+        lblTitulo.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        lblTitulo.setForeground(new Color(33, 37, 41));
+        panelCabecera.add(lblTitulo, BorderLayout.WEST);
+
+        JPanel panelBusqueda = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        txtBuscarPlaca = new JTextField(12);
+        JButton btnBuscar = new JButton("Buscar");
+        JButton btnRestablecer = new JButton("Ver Todos");
+
+        panelBusqueda.add(new JLabel("Placa o DNI Dueño:"));
+        panelBusqueda.add(txtBuscarPlaca);
+        panelBusqueda.add(btnBuscar);
+        panelBusqueda.add(btnRestablecer);
+        panelCabecera.add(panelBusqueda, BorderLayout.EAST);
+
+        add(panelCabecera, BorderLayout.NORTH);
+
+        // --- PANEL CENTRAL: FORMULARIO Y TABLA ---
+        JPanel panelCentral = new JPanel(new BorderLayout(10, 10));
+
+        // Formulario a la izquierda
+        JPanel panelFormulario = new JPanel(new GridBagLayout());
+        panelFormulario.setBorder(BorderFactory.createTitledBorder("Datos del Vehículo"));
+        panelFormulario.setPreferredSize(new Dimension(340, 0));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(6, 6, 6, 6);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        txtPlaca = new JTextField(15);
+        txtAnio = new JTextField(15);
+        txtColor = new JTextField(15);
+        txtKilometraje = new JTextField(15);
+        txtDniPropietario = new JTextField(15);
+
+        agregarCampo(panelFormulario, "Placa:", txtPlaca, gbc, 0);
+        agregarCampo(panelFormulario, "Año:", txtAnio, gbc, 1);
+        agregarCampo(panelFormulario, "Color:", txtColor, gbc, 2);
+        agregarCampo(panelFormulario, "Kilometraje:", txtKilometraje, gbc, 3);
+        agregarCampo(panelFormulario, "DNI Dueño:", txtDniPropietario, gbc, 4);
+
+        // Panel de botones del formulario
+        JPanel panelBotones = new JPanel(new GridLayout(2, 2, 6, 6));
+        JButton btnRegistrar = new JButton("Registrar");
+        JButton btnActualizar = new JButton("Actualizar");
+        JButton btnDarBaja = new JButton("Dar de Baja");
+        JButton btnLimpiar = new JButton("Limpiar");
+
+        btnRegistrar.setBackground(new Color(40, 167, 69));
+        btnRegistrar.setForeground(Color.WHITE);
+        btnActualizar.setBackground(new Color(0, 123, 255));
+        btnActualizar.setForeground(Color.WHITE);
+        btnDarBaja.setBackground(new Color(220, 53, 69));
+        btnDarBaja.setForeground(Color.WHITE);
+
+        panelBotones.add(btnRegistrar);
+        panelBotones.add(btnActualizar);
+        panelBotones.add(btnDarBaja);
+        panelBotones.add(btnLimpiar);
+
+        gbc.gridx = 0;
+        gbc.gridy = 5;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(15, 6, 6, 6);
+        panelFormulario.add(panelBotones, gbc);
+
+        panelCentral.add(panelFormulario, BorderLayout.WEST);
+
+        // Tabla a la derecha
+        String[] columnas = {"Placa", "Año", "Color", "Km", "Propietario", "Estado"};
+        modeloTabla = new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        tablaVehiculos = new JTable(modeloTabla);
+        tablaVehiculos.setRowHeight(24);
+        tablaVehiculos.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        tablaVehiculos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        JScrollPane scrollTabla = new JScrollPane(tablaVehiculos);
+        scrollTabla.setBorder(BorderFactory.createTitledBorder("Vehículos en Taller"));
+        panelCentral.add(scrollTabla, BorderLayout.CENTER);
+
+        add(panelCentral, BorderLayout.CENTER);
+
+        // --- EVENTOS ---
+        btnRegistrar.addActionListener(e -> registrarVehiculo());
+        btnActualizar.addActionListener(e -> actualizarVehiculo());
+        btnDarBaja.addActionListener(e -> darDeBajaVehiculo());
+        btnLimpiar.addActionListener(e -> limpiarFormulario());
+        btnBuscar.addActionListener(e -> buscarVehiculo());
+        btnRestablecer.addActionListener(e -> {
+            txtBuscarPlaca.setText("");
+            cargarTabla();
+        });
+
+        tablaVehiculos.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                cargarFormularioDesdeTabla();
+            }
+        });
+    }
+
+    private void agregarCampo(JPanel panel, String etiqueta, JTextField campo, GridBagConstraints gbc, int fila) {
+        gbc.gridwidth = 1;
+        gbc.gridx = 0;
+        gbc.gridy = fila;
+        gbc.weightx = 0.35;
+        panel.add(new JLabel(etiqueta), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 0.65;
+        panel.add(campo, gbc);
+    }
+
+    private void registrarVehiculo() {
+        String placa = txtPlaca.getText().trim();
+        String strAnio = txtAnio.getText().trim();
+        String color = txtColor.getText().trim();
+        String strKm = txtKilometraje.getText().trim();
+        String dniDueño = txtDniPropietario.getText().trim();
+
+        if (placa.isEmpty() || strAnio.isEmpty() || color.isEmpty() || strKm.isEmpty() || dniDueño.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Todos los campos son obligatorios.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int anio;
+        int kilometraje;
+        try {
+            anio = Integer.parseInt(strAnio);
+            kilometraje = Integer.parseInt(strKm);
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Año y Kilometraje deben ser valores numéricos enteros.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Cliente propietario = gestorClientes.leer(dniDueño);
+        if (propietario == null) {
+            JOptionPane.showMessageDialog(this, "No existe un cliente activo con el DNI: " + dniDueño + ". Regístrelo primero en la pestaña Clientes.", "Propietario no encontrado", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        Vehiculo nuevo = new Vehiculo(placa, anio, color, kilometraje, propietario);
+        boolean registrado = gestorVehiculos.crear(nuevo);
+
+        if (registrado) {
+            JOptionPane.showMessageDialog(this, "Vehículo registrado correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            cargarTabla();
+            limpiarFormulario();
+        } else {
+            JOptionPane.showMessageDialog(this, "No se pudo registrar: La placa ya existe o se alcanzó la capacidad máxima.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void actualizarVehiculo() {
+        String placa = txtPlaca.getText().trim();
+        String strAnio = txtAnio.getText().trim();
+        String color = txtColor.getText().trim();
+        String strKm = txtKilometraje.getText().trim();
+        String dniDueño = txtDniPropietario.getText().trim();
+
+        if (placa.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Seleccione un vehículo e ingrese la placa a actualizar.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int anio;
+        int kilometraje;
+        try {
+            anio = Integer.parseInt(strAnio);
+            kilometraje = Integer.parseInt(strKm);
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Año y Kilometraje deben ser numéricos.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Cliente propietario = gestorClientes.leer(dniDueño);
+        if (propietario == null) {
+            JOptionPane.showMessageDialog(this, "No existe cliente con DNI " + dniDueño, "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        Vehiculo actualizado = new Vehiculo(placa, anio, color, kilometraje, propietario);
+        boolean ok = gestorVehiculos.actualizar(actualizado);
+
+        if (ok) {
+            JOptionPane.showMessageDialog(this, "Vehículo actualizado exitosamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            cargarTabla();
+            limpiarFormulario();
+        } else {
+            JOptionPane.showMessageDialog(this, "No se encontró el vehículo activo con esa placa.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void darDeBajaVehiculo() {
+        String placa = txtPlaca.getText().trim();
+        if (placa.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Seleccione o ingrese la placa a dar de baja.", "Validación", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Vehiculo v = gestorVehiculos.leer(placa);
+        if (v == null) {
+            JOptionPane.showMessageDialog(this, "No se encontró un vehículo activo con la placa indicada.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // El sistema verifica que no tenga órdenes activas
+        if (gestorOrdenes != null && gestorOrdenes.tieneOrdenActiva(v)) {
+            JOptionPane.showMessageDialog(this,
+                    "No se puede dar de baja al vehículo con placa " + placa + 
+                    " porque tiene una orden de trabajo activa en el taller.",
+                    "Baja Rechazada",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirmacion = JOptionPane.showConfirmDialog(this,
+                "¿Está seguro de dar de baja al vehículo con placa " + placa + "?",
+                "Confirmar Baja Lógica",
+                JOptionPane.YES_NO_OPTION);
+
+        if (confirmacion == JOptionPane.YES_OPTION) {
+            boolean dadoDeBaja = gestorVehiculos.darDeBaja(placa);
+            if (dadoDeBaja) {
+                JOptionPane.showMessageDialog(this, "Vehículo dado de baja correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                cargarTabla();
+                limpiarFormulario();
+            } else {
+                JOptionPane.showMessageDialog(this, "No se pudo procesar la baja del vehículo.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void buscarVehiculo() {
+        String criterio = txtBuscarPlaca.getText().trim();
+        if (criterio.isEmpty()) {
+            cargarTabla();
+            return;
+        }
+
+        // 1. Intentar buscar por placa exacta
+        Vehiculo v = gestorVehiculos.leer(criterio);
+        modeloTabla.setRowCount(0);
+        if (v != null) {
+            modeloTabla.addRow(new Object[]{
+                    v.getPlaca(),
+                    v.getAnio(),
+                    v.getColor(),
+                    v.getKilometraje(),
+                    v.getPropietario() != null ? (v.getPropietario().getDni() + " - " + v.getPropietario().getNombres()) : "Sin dueño",
+                    v.isActivo() ? "Activo" : "Inactivo"
+            });
+            return;
+        }
+
+        // 2. Intentar buscar si el criterio es el DNI de un cliente (RF-06)
+        Cliente c = gestorClientes.leer(criterio);
+        if (c != null) {
+            Vehiculo[] listaCliente = gestorVehiculos.listarPorCliente(c);
+            if (listaCliente.length > 0) {
+                for (Vehiculo veh : listaCliente) {
+                    modeloTabla.addRow(new Object[]{
+                            veh.getPlaca(),
+                            veh.getAnio(),
+                            veh.getColor(),
+                            veh.getKilometraje(),
+                            veh.getPropietario() != null ? (veh.getPropietario().getDni() + " - " + veh.getPropietario().getNombres()) : "Sin dueño",
+                            veh.isActivo() ? "Activo" : "Inactivo"
+                    });
+                }
+                return;
+            }
+        }
+
+        JOptionPane.showMessageDialog(this, "No se encontró ningún vehículo activo por placa o DNI de cliente: " + criterio, "Búsqueda", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    public void cargarTabla() {
+        modeloTabla.setRowCount(0);
+        Vehiculo[] lista = gestorVehiculos.listar();
+        for (Vehiculo v : lista) {
+            modeloTabla.addRow(new Object[]{
+                    v.getPlaca(),
+                    v.getAnio(),
+                    v.getColor(),
+                    v.getKilometraje(),
+                    v.getPropietario() != null ? (v.getPropietario().getDni() + " - " + v.getPropietario().getNombres()) : "Sin dueño",
+                    v.isActivo() ? "Activo" : "Inactivo"
+            });
+        }
+    }
+
+    private void cargarFormularioDesdeTabla() {
+        int fila = tablaVehiculos.getSelectedRow();
+        if (fila >= 0) {
+            txtPlaca.setText(modeloTabla.getValueAt(fila, 0).toString());
+            txtAnio.setText(modeloTabla.getValueAt(fila, 1).toString());
+            txtColor.setText(modeloTabla.getValueAt(fila, 2).toString());
+            txtKilometraje.setText(modeloTabla.getValueAt(fila, 3).toString());
+
+            String propInfo = modeloTabla.getValueAt(fila, 4).toString();
+            if (propInfo.contains(" - ")) {
+                txtDniPropietario.setText(propInfo.split(" - ")[0]);
+            }
+        }
+    }
+
+    private void limpiarFormulario() {
+        txtPlaca.setText("");
+        txtAnio.setText("");
+        txtColor.setText("");
+        txtKilometraje.setText("");
+        txtDniPropietario.setText("");
+        tablaVehiculos.clearSelection();
+    }
+}
+
+.
+===== C:\Proyectos\Sistema_de_Gestion_de_Taller_Mecanico\src\vista\VentanaPrincipal.java ===== 
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
+ */
+package vista;
+
+import gestores.*;
+import modelo.*;
+import persistencia.GestorArchivos;
+import javax.swing.*;
+import java.awt.*;
+
+/**
+ *
+ * @author Marlon
+ */
+public class VentanaPrincipal extends javax.swing.JFrame {
+    
+    private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(VentanaPrincipal.class.getName());
+
+    // --- ATRIBUTOS PARA LOS GESTORES ---
+    private GestorClientes gestorClientes;
+    private GestorVehiculos gestorVehiculos;
+    private Catalogo catalogo;
+    private GestorOrdenes gestorOrdenes;
+    private HistorialFacturas historialFacturas;
+
+    // --- PANELES DE LA INTERFAZ ---
+    private PanelClientes panelClientes;
+    private PanelVehiculos panelVehiculos;
+    private PanelOrdenes panelOrdenes;
+    private PanelCatalogo panelCatalogo;
+
+    /**
+     * Creates new form VentanaPrincipal
+     */
+    public VentanaPrincipal() {
+        initComponents();
+    }
+
+    // --- MÉTODO PARA INYECTAR LOS GESTORES (Llamado desde Main tras cargar .txt) ---
+    public void setGestores(
+            GestorClientes gClientes, 
+            GestorVehiculos gVehiculos, 
+            Catalogo gCatalogo, 
+            GestorOrdenes gOrdenes, 
+            HistorialFacturas hFacturas) {
+        
+        this.gestorClientes = gClientes;
+        this.gestorVehiculos = gVehiculos;
+        this.catalogo = gCatalogo;
+        this.gestorOrdenes = gOrdenes;
+        this.historialFacturas = hFacturas;
+
+        construirInterfaz();
+    }
+
+    private void construirInterfaz() {
+        // 1. Crear paneles de interfaz conectados a los gestores cargados
+        panelClientes = new PanelClientes(gestorClientes, gestorOrdenes, gestorVehiculos);
+        panelVehiculos = new PanelVehiculos(gestorVehiculos, gestorClientes, gestorOrdenes);
+        panelOrdenes = new PanelOrdenes(gestorOrdenes, gestorClientes, gestorVehiculos, catalogo);
+        panelCatalogo = new PanelCatalogo(catalogo, gestorOrdenes, historialFacturas);
+
+        // 2. Configurar pestañas principales
+        JTabbedPane pestañas = new JTabbedPane();
+        pestañas.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        pestañas.addTab("  👤 Clientes  ", panelClientes);
+        pestañas.addTab("  🚗 Vehículos  ", panelVehiculos);
+        pestañas.addTab("  📋 Órdenes de Trabajo  ", panelOrdenes);
+        pestañas.addTab("  📦 Catálogo e Historial  ", panelCatalogo);
+
+        // Actualizar datos de las tablas automáticamente al cambiar de pestaña
+        pestañas.addChangeListener(e -> {
+            int idx = pestañas.getSelectedIndex();
+            if (idx == 0) panelClientes.cargarTabla();
+            else if (idx == 1) panelVehiculos.cargarTabla();
+            else if (idx == 2) panelOrdenes.cargarTablaOrdenes();
+            else if (idx == 3) {
+                panelCatalogo.cargarTablaCatalogo();
+                panelCatalogo.cargarTablaHistorial();
+            }
+        });
+
+        // 3. Barra de Menú con opción para Guardar en Archivos .txt
+        JMenuBar menuBar = new JMenuBar();
+        JMenu menuArchivo = new JMenu("Archivo");
+        menuArchivo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+
+        JMenuItem itemGuardar = new JMenuItem("💾 Guardar Todo en Archivos (.txt)");
+        itemGuardar.addActionListener(e -> guardarDatosEnDisco());
+
+        JMenuItem itemSalir = new JMenuItem("❌ Salir");
+        itemSalir.addActionListener(e -> System.exit(0));
+
+        menuArchivo.add(itemGuardar);
+        menuArchivo.addSeparator();
+        menuArchivo.add(itemSalir);
+        menuBar.add(menuArchivo);
+        setJMenuBar(menuBar);
+
+        // 4. Configurar dimensiones y visualización de la ventana
+        setTitle("Sistema de Gestión de Taller Mecánico - Algorítmica II");
+        setSize(1040, 720);
+        setMinimumSize(new Dimension(900, 600));
+
+        getContentPane().removeAll();
+        getContentPane().setLayout(new BorderLayout());
+        getContentPane().add(pestañas, BorderLayout.CENTER);
+        revalidate();
+        repaint();
+    }
+
+    private void guardarDatosEnDisco() {
+        try {
+            GestorArchivos.guardarClientes(gestorClientes);
+            GestorArchivos.guardarCatalogo(catalogo);
+            GestorArchivos.guardarVehiculos(gestorVehiculos);
+            GestorArchivos.guardarOrdenes(gestorOrdenes);
+            GestorArchivos.guardarFacturas(historialFacturas);
+
+            JOptionPane.showMessageDialog(this,
+                    "¡Todos los datos han sido guardados exitosamente en la carpeta 'datos/'!",
+                    "Guardado Exitoso",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Ocurrió un error al guardar los archivos: " + ex.getMessage(),
+                    "Error al Guardar",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * This method is called from within the constructor to initialize the form.
+     * WARNING: Do NOT modify this code. The content of this method is always
+     * regenerated by the Form Editor.
+     */
+    @SuppressWarnings("unchecked")
+    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
+    private void initComponents() {
+
+        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
+        getContentPane().setLayout(layout);
+        layout.setHorizontalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 400, Short.MAX_VALUE)
+        );
+        layout.setVerticalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 300, Short.MAX_VALUE)
+        );
+
+        pack();
+    }// </editor-fold>//GEN-END:initComponents
+
+    /**
+     * @param args the command line arguments
+     */
+    public static void main(String args[]) {
+        /* Set the Nimbus look and feel */
+        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
+        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
+         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
+         */
+        try {
+            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+                if ("Nimbus".equals(info.getName())) {
+                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
+                    break;
+                }
+            }
+        } catch (ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException ex) {
+            logger.log(java.util.logging.Level.SEVERE, null, ex);
+        }
+        //</editor-fold>
+
+        /* Create and display the form */
+        java.awt.EventQueue.invokeLater(() -> new VentanaPrincipal().setVisible(true));
+    }
+
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    // End of variables declaration//GEN-END:variables
+}
+.
